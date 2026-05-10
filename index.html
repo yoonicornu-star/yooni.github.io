@@ -129,7 +129,7 @@
     </div>
 
     <div id="crosshair"></div>
-    <div id="interaction-message">Appuyez sur 'E' pour ouvrir la page</div>
+    <div id="interaction-message">Appuyez sur 'E' pour ouvrir : Dissertation de Français</div>
     <div id="notification">Ouverture de la page GitHub Pages...</div>
 
     <!-- Conteneur pour le rendu Three.js -->
@@ -364,16 +364,53 @@
                 scene.add(col);
             });
 
-            // -- L'OBJET INTERACTIF (La "Page") --
-            // Un cube flottant et tournant avec une couleur distincte
+            // -- L'OBJET INTERACTIF (La "Page" avec aperçu) --
+            // 1. Création d'une texture avec Canvas pour l'aperçu du texte
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = 512;
+            pageCanvas.height = 700;
+            const ctx = pageCanvas.getContext('2d');
+            
+            // Fond blanc (papier)
+            ctx.fillStyle = '#f9f9f9';
+            ctx.fillRect(0, 0, 512, 700);
+            
+            // Titre de la page
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 36px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Dissertation de Français', 256, 80);
+            
+            // Faux texte pour donner l'illusion d'une page remplie
+            ctx.fillStyle = '#7f8c8d';
+            ctx.textAlign = 'left';
+            ctx.font = '22px sans-serif';
+            ctx.fillText('Introduction :', 40, 150);
+            
+            for(let i=0; i<12; i++) {
+                // Lignes de texte générées sous forme de petits rectangles
+                ctx.fillRect(40, 180 + i * 35, 432 - (Math.random() * 100), 15);
+            }
+            
+            const pageTexture = new THREE.CanvasTexture(pageCanvas);
+
+            // 2. Création de la géométrie et des matériaux
             const intGeo = new THREE.BoxGeometry( 4, 6, 0.5 ); // Forme d'une page
-            const intMat = new THREE.MeshStandardMaterial( { 
-                color: 0xffd700, // Or
-                emissive: 0x554400,
-                roughness: 0.1,
-                metalness: 0.8
+            
+            // Matériau doré pour la couverture/dos
+            const coverMat = new THREE.MeshStandardMaterial( { 
+                color: 0xffd700, emissive: 0x332200, roughness: 0.2, metalness: 0.8
             } );
-            interactableObject = new THREE.Mesh( intGeo, intMat );
+            
+            // Matériau avec notre aperçu textuel pour la face avant
+            const frontMat = new THREE.MeshStandardMaterial( { 
+                map: pageTexture, roughness: 0.8, metalness: 0.1
+            } );
+
+            // Ordre des faces dans ThreeJS BoxGeometry : Droite, Gauche, Haut, Bas, Avant, Arrière
+            const materials = [ coverMat, coverMat, coverMat, coverMat, frontMat, coverMat ];
+            
+            interactableObject = new THREE.Mesh( intGeo, materials );
             // Positionner au centre, un peu au fond
             interactableObject.position.set( 0, 10, -20 ); 
             scene.add( interactableObject );
@@ -464,8 +501,8 @@
 
             // 1. ANIMATION DES OBJETS
             if (interactableObject) {
-                // Fait tourner l'objet sur lui-même
-                interactableObject.rotation.y += 0.01;
+                // Fait tourner l'objet sur lui-même (vitesse réduite pour mieux lire le titre)
+                interactableObject.rotation.y += 0.005;
                 // Le fait flotter un peu de haut en bas
                 interactableObject.position.y = 10 + Math.sin(time * 0.002) * 2;
             }
