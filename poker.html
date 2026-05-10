@@ -73,15 +73,40 @@
 
     <div id="notification-container"></div>
 
-    <!-- Écran de chargement / Lobby -->
-    <div id="lobby-screen" class="absolute inset-0 bg-gray-900 z-40 flex flex-col items-center justify-center">
-        <h2 class="text-4xl font-bold mb-8 text-green-400">Poker Room</h2>
-        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md w-full">
-            <input type="text" id="player-name-input" placeholder="Votre Pseudo" class="w-full p-3 mb-4 rounded bg-gray-700 text-white border border-gray-600 focus:border-green-400 focus:outline-none text-center text-lg">
-            <button id="join-game-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition text-xl">
-                Rejoindre la Table
+    <!-- Menu Principal -->
+    <div id="main-menu-screen" class="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center">
+        <h2 class="text-5xl font-bold mb-12 text-green-400 drop-shadow-lg">Poker Room</h2>
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-700">
+            <button id="create-table-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-4 rounded-lg transition text-xl shadow-lg mb-8">
+                Créer une Table
             </button>
-            <div id="lobby-message" class="mt-4 text-red-400"></div>
+            <div class="flex items-center my-4">
+                <div class="flex-grow border-t border-gray-600"></div>
+                <span class="px-4 text-gray-400 font-semibold">OU</span>
+                <div class="flex-grow border-t border-gray-600"></div>
+            </div>
+            <div class="mt-8 flex gap-2">
+                <input type="text" id="join-id-input" placeholder="ID de la table (ex: X7B9K)" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-400 focus:outline-none text-center text-lg uppercase">
+                <button id="join-table-menu-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded transition text-lg">
+                    Rejoindre
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran de chargement / Lobby -->
+    <div id="lobby-screen" class="absolute inset-0 bg-gray-900 z-40 flex flex-col items-center justify-center hidden">
+        <h2 class="text-4xl font-bold mb-4 text-green-400">Salle <span id="lobby-room-id" class="text-white"></span></h2>
+        <p class="text-gray-400 mb-8">Entrez votre pseudo pour rejoindre la table.</p>
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md w-full border border-gray-700">
+            <input type="text" id="player-name-input" placeholder="Votre Pseudo" class="w-full p-3 mb-6 rounded bg-gray-700 text-white border border-gray-600 focus:border-green-400 focus:outline-none text-center text-lg">
+            <button id="join-game-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition text-xl shadow-lg">
+                Entrer dans la partie
+            </button>
+            <button id="back-to-menu-btn" class="w-full mt-4 text-gray-400 hover:text-white transition text-sm">
+                ← Retour au menu principal
+            </button>
+            <div id="lobby-message" class="mt-4 text-red-400 font-semibold"></div>
         </div>
     </div>
 
@@ -156,15 +181,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'poker-app-v1';
         let currentUser = null;
         let gameId = new URLSearchParams(window.location.search).get('game');
-        let isHost = !gameId; // Si pas d'ID dans l'URL, on est l'hôte
-        if (isHost) {
-            gameId = Math.random().toString(36).substring(2, 9).toUpperCase();
-            try {
-                window.history.replaceState({}, '', `?game=${gameId}`);
-            } catch(e) {
-                console.warn("Environnement restreint: impossible de modifier l'URL via replaceState.", e);
-            }
-        }
+        let isHost = false; 
         
         // Structure de chemin Firebase stricte selon les règles
         const getGameDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'games', gameId);
@@ -180,6 +197,12 @@
         // Elements DOM
         const ui = {
             status: document.getElementById('connection-status'),
+            mainMenu: document.getElementById('main-menu-screen'),
+            createTableBtn: document.getElementById('create-table-btn'),
+            joinIdInput: document.getElementById('join-id-input'),
+            joinTableMenuBtn: document.getElementById('join-table-menu-btn'),
+            lobbyRoomId: document.getElementById('lobby-room-id'),
+            backToMenuBtn: document.getElementById('back-to-menu-btn'),
             lobby: document.getElementById('lobby-screen'),
             gameArea: document.getElementById('game-area'),
             controls: document.getElementById('player-controls'),
@@ -202,7 +225,9 @@
             notifContainer: document.getElementById('notification-container')
         };
 
-        ui.gameIdDisplay.textContent = `#${gameId}`;
+        if (gameId) {
+            ui.gameIdDisplay.textContent = `#${gameId}`;
+        }
 
         // Utilitaire: Notifications
         function showNotification(msg) {
@@ -233,6 +258,85 @@
                 console.error('Erreur de copie', err);
             }
             document.body.removeChild(textarea);
+        });
+
+        // Navigation Menu Principal / Lobby
+        if (gameId) {
+            showLobbyScreen(gameId);
+        } else {
+            ui.mainMenu.classList.remove('hidden');
+            ui.lobby.classList.add('hidden');
+        }
+
+        function showLobbyScreen(id) {
+            gameId = id.toUpperCase();
+            ui.lobbyRoomId.textContent = gameId;
+            ui.gameIdDisplay.textContent = `#${gameId}`;
+            ui.mainMenu.classList.add('hidden');
+            ui.lobby.classList.remove('hidden');
+            
+            try {
+                const url = new URL(window.location);
+                url.searchParams.set('game', gameId);
+                window.history.replaceState({}, '', url);
+            } catch(e) {}
+        }
+
+        ui.createTableBtn.addEventListener('click', async () => {
+            if (!currentUser) {
+                showNotification("Connexion en cours, veuillez patienter...");
+                return;
+            }
+            
+            const newId = Math.random().toString(36).substring(2, 9).toUpperCase();
+            const originalGameId = gameId;
+            gameId = newId; 
+            isHost = true;
+            
+            try {
+                // Création immédiate du document pour que le lien soit valide tout de suite
+                const gameRef = getGameDocRef();
+                await setDoc(gameRef, {
+                    phase: 'WAITING',
+                    pot: 0,
+                    currentBet: 0,
+                    dealerIndex: 0,
+                    activePlayerIndex: 0,
+                    deck: [],
+                    communityCards: [],
+                    players: [],
+                    hostId: myPlayerId,
+                    lastAction: 'Partie créée'
+                });
+                showLobbyScreen(newId);
+            } catch (err) {
+                console.error(err);
+                showNotification("Erreur lors de la création de la partie.");
+                gameId = originalGameId;
+            }
+        });
+
+        ui.joinTableMenuBtn.addEventListener('click', () => {
+            const id = ui.joinIdInput.value.trim();
+            if (id) {
+                isHost = false;
+                showLobbyScreen(id);
+            } else {
+                showNotification("Veuillez entrer un ID de table valide");
+            }
+        });
+
+        ui.backToMenuBtn.addEventListener('click', () => {
+            gameId = null;
+            isHost = false;
+            ui.lobby.classList.add('hidden');
+            ui.mainMenu.classList.remove('hidden');
+            document.getElementById('lobby-message').textContent = "";
+            try {
+                const url = new URL(window.location);
+                url.searchParams.delete('game');
+                window.history.replaceState({}, '', url);
+            } catch(e) {}
         });
 
         const suits = ['♠', '♥', '♦', '♣'];
@@ -290,49 +394,29 @@
                 myPlayerId = user.uid;
                 ui.status.textContent = "Connecté";
                 ui.status.classList.replace('text-yellow-400', 'text-green-400');
-                
-                // Si on est l'hôte, on initialise le document du jeu s'il n'existe pas
-                const gameRef = getGameDocRef();
-                const gameSnap = await getDoc(gameRef);
-                
-                if (!gameSnap.exists() && isHost) {
-                    await setDoc(gameRef, {
-                        phase: 'WAITING', // WAITING, PREFLOP, FLOP, TURN, RIVER, SHOWDOWN
-                        pot: 0,
-                        currentBet: 0,
-                        dealerIndex: 0,
-                        activePlayerIndex: 0,
-                        deck: [],
-                        communityCards: [],
-                        players: [], // [{ id, name, chips, bet, folded, cards: [] }]
-                        hostId: myPlayerId,
-                        lastAction: 'Game created'
-                    });
-                } else if (!gameSnap.exists()) {
-                    document.getElementById('lobby-message').textContent = "Partie introuvable.";
-                    return;
-                }
-
-                // Démarrer l'écoute de l'état du jeu
-                listenToGame();
             }
         });
 
         ui.joinBtn.addEventListener('click', async () => {
             const name = ui.nameInput.value.trim() || "Joueur " + Math.floor(Math.random()*1000);
-            if (!currentUser) return;
+            if (!currentUser) {
+                document.getElementById('lobby-message').textContent = "Veuillez patienter, connexion en cours...";
+                return;
+            }
 
             ui.joinBtn.disabled = true;
             ui.joinBtn.textContent = "Connexion...";
+            document.getElementById('lobby-message').textContent = "";
 
             try {
+                const gameRef = getGameDocRef();
+                
                 // Utilisation de runTransaction pour éviter les conflits d'ajout simultané
                 await runTransaction(db, async (transaction) => {
-                    const gameRef = getGameDocRef();
-                    const gameDoc = await transaction.get(gameRef);
-                    if (!gameDoc.exists()) throw "Partie n'existe plus";
+                    const doc = await transaction.get(gameRef);
+                    if (!doc.exists()) throw "La partie n'existe pas ou l'ID est invalide.";
                     
-                    const data = gameDoc.data();
+                    const data = doc.data();
                     let players = data.players || [];
                     
                     // Vérifier si déjà dans la partie
@@ -341,7 +425,7 @@
                     }
 
                     if (players.length >= 5) {
-                        throw "Table pleine (Max 5)";
+                        throw "La table est pleine (Max 5 joueurs).";
                     }
 
                     players.push({
@@ -356,16 +440,18 @@
                     transaction.update(gameRef, { players: players });
                 });
 
-                ui.lobby.style.display = 'none';
+                listenToGame();
+
+                ui.lobby.classList.add('hidden');
+                ui.mainMenu.classList.add('hidden');
                 ui.gameArea.style.display = 'flex';
                 ui.inviteBtn.classList.remove('hidden');
                 
-                // Si on a rejoint en cours de jeu, les contrôles s'afficheront via listenToGame
             } catch (error) {
                 console.error("Erreur join:", error);
                 document.getElementById('lobby-message').textContent = error;
                 ui.joinBtn.disabled = false;
-                ui.joinBtn.textContent = "Rejoindre la Table";
+                ui.joinBtn.textContent = "Entrer dans la partie";
             }
         });
 
