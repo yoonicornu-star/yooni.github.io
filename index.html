@@ -9,7 +9,7 @@
     <style>
         body {
             margin: 0;
-            overflow: hidden; /* Empêche le défilement */
+            overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #000;
         }
@@ -20,7 +20,6 @@
             display: block;
         }
 
-        /* Écran d'instructions avant de commencer */
         #instructions {
             position: absolute;
             top: 0;
@@ -38,17 +37,9 @@
             cursor: pointer;
         }
 
-        #instructions h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
+        #instructions h1 { font-size: 3em; margin-bottom: 10px; }
+        #instructions p { font-size: 1.2em; color: #ccc; }
 
-        #instructions p {
-            font-size: 1.2em;
-            color: #ccc;
-        }
-
-        /* Message d'interaction (Appuyer sur E) */
         #interaction-message {
             position: absolute;
             bottom: 20%;
@@ -57,18 +48,18 @@
             color: white;
             font-size: 24px;
             font-weight: bold;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.6);
             padding: 10px 20px;
             border-radius: 8px;
-            display: none; /* Masqué par défaut */
+            display: none;
             z-index: 5;
-            pointer-events: none; /* Ne bloque pas les clics */
+            pointer-events: none;
             text-transform: uppercase;
             letter-spacing: 2px;
             border: 2px solid rgba(255, 255, 255, 0.3);
+            text-shadow: 1px 1px 2px black;
         }
 
-        /* Un petit réticule (croix) au centre de l'écran */
         #crosshair {
             position: absolute;
             top: 50%;
@@ -84,19 +75,14 @@
             position: absolute;
             background-color: rgba(255, 255, 255, 0.8);
         }
-        #crosshair::before {
-            top: 4px; left: 0; width: 10px; height: 2px;
-        }
-        #crosshair::after {
-            top: 0; left: 4px; width: 2px; height: 10px;
-        }
+        #crosshair::before { top: 4px; left: 0; width: 10px; height: 2px; }
+        #crosshair::after { top: 0; left: 4px; width: 2px; height: 10px; }
 
-        /* Style pour les notifications factices lors de l'appui sur E */
         #notification {
             position: absolute;
             top: 20px;
             right: 20px;
-            background-color: #4CAF50;
+            background-color: #3498db;
             color: white;
             padding: 15px 25px;
             border-radius: 5px;
@@ -113,43 +99,33 @@
             90% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-20px); }
         }
-
     </style>
 </head>
 <body>
 
     <div id="instructions">
-        <h1>Mon Home 3D</h1>
+        <h1>Mon Home 3D (Avec Étage)</h1>
         <p>Cliquez pour jouer</p>
         <p style="font-size: 0.9em; margin-top: 20px;">
             ZQSD / Flèches pour se déplacer<br>
             Souris pour regarder<br>
+            Espace pour sauter<br>
             Échap pour quitter
         </p>
     </div>
 
     <div id="crosshair"></div>
-    <div id="interaction-message">Appuyez sur 'E' pour ouvrir : Dissertation de Français</div>
-    <div id="notification">Ouverture de la page GitHub Pages...</div>
-
-    <!-- Conteneur pour le rendu Three.js -->
+    <div id="interaction-message">Appuyez sur 'E'</div>
+    <div id="notification">Action en cours...</div>
     <div id="canvas-container"></div>
 
     <script>
-        // Implémentation simplifiée de PointerLockControls intégrée
-        // Basée sur le code source de Three.js d'origine
         const PointerLockControls = function ( camera, domElement ) {
             this.domElement = domElement;
             this.isLocked = false;
-            
-            this.minPolarAngle = 0; // Vue max vers le haut (0 = zénith)
-            this.maxPolarAngle = Math.PI; // Vue max vers le bas (PI = nadir)
-
+            this.minPolarAngle = 0; 
+            this.maxPolarAngle = Math.PI; 
             const scope = this;
-            const changeEvent = { type: 'change' };
-            const lockEvent = { type: 'lock' };
-            const unlockEvent = { type: 'unlock' };
-            
             const euler = new THREE.Euler( 0, 0, 0, 'YXZ' );
             const PI_2 = Math.PI / 2;
             const vec = new THREE.Vector3();
@@ -158,14 +134,10 @@
                 if ( scope.isLocked === false ) return;
                 const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
                 const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
                 euler.setFromQuaternion( camera.quaternion );
-
                 euler.y -= movementX * 0.002;
                 euler.x -= movementY * 0.002;
-
                 euler.x = Math.max( PI_2 - scope.maxPolarAngle, Math.min( PI_2 - scope.minPolarAngle, euler.x ) );
-
                 camera.quaternion.setFromEuler( euler );
             }
 
@@ -173,7 +145,6 @@
                 if ( document.pointerLockElement === scope.domElement ) {
                     document.addEventListener( 'mousemove', onMouseMove, false );
                     scope.isLocked = true;
-                    // Déclenchement d'un événement global (bidouillage simple)
                     window.dispatchEvent(new Event('controlsLocked'));
                 } else {
                     document.removeEventListener( 'mousemove', onMouseMove, false );
@@ -181,88 +152,65 @@
                     window.dispatchEvent(new Event('controlsUnlocked'));
                 }
             }
-
-            function onPointerlockError() {
-                console.error( 'PointerLockControls: Impossible d\'acquérir le verrouillage du pointeur' );
-            }
-
             this.connect = function () {
                 document.addEventListener( 'pointerlockchange', onPointerlockChange, false );
-                document.addEventListener( 'pointerlockerror', onPointerlockError, false );
             };
-
             this.disconnect = function () {
                 document.removeEventListener( 'pointerlockchange', onPointerlockChange, false );
-                document.removeEventListener( 'pointerlockerror', onPointerlockError, false );
             };
-
-            this.lock = function () {
-                this.domElement.requestPointerLock();
-            };
-
-            this.unlock = function () {
-                document.exitPointerLock();
-            };
-
-            this.getObject = function () { // conserve la caméra pour la compatibilité
-                return camera;
-            };
-
+            this.lock = function () { this.domElement.requestPointerLock(); };
+            this.unlock = function () { document.exitPointerLock(); };
+            this.getObject = function () { return camera; };
             this.getDirection = function () {
                 const direction = new THREE.Vector3( 0, 0, - 1 );
                 return direction.applyQuaternion( camera.quaternion );
             };
-
             this.moveForward = function ( distance ) {
                 vec.setFromMatrixColumn( camera.matrix, 0 );
                 vec.crossVectors( camera.up, vec );
                 camera.position.addScaledVector( vec, distance );
             };
-
             this.moveRight = function ( distance ) {
                 vec.setFromMatrixColumn( camera.matrix, 0 );
                 camera.position.addScaledVector( vec, distance );
             };
-
             this.connect();
         };
 
         let camera, scene, renderer, controls;
-        
-        // Variables pour le mouvement
-        let moveForward = false;
-        let moveBackward = false;
-        let moveLeft = false;
-        let moveRight = false;
-        let canJump = false;
-        
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
         let prevTime = performance.now();
         const velocity = new THREE.Vector3();
         const direction = new THREE.Vector3();
 
-        // Références UI
         const instructions = document.getElementById( 'instructions' );
         const interactionMsg = document.getElementById( 'interaction-message' );
         const notificationMsg = document.getElementById( 'notification' );
 
-        // Gestion de plusieurs salles et objets interactifs
-        let interactableObjects = []; // Tableau pour stocker tous les objets
-        let closestObject = null;     // Objet le plus proche du joueur
-        const interactionDistance = 15; // Distance d'interaction
-        const walls = []; // Stockage des murs pour les collisions
+        // Gestion de l'environnement physique
+        let interactableObjects = []; 
+        let closestObject = null;     
+        const interactionDistance = 15; 
+        
+        // Nouveaux tableaux pour la gestion de la physique 3D
+        const walls = [];  // Murs (Bloquent sur X et Z en fonction de Y)
+        const floors = []; // Planchers (Définissent la hauteur de marche)
+
+        // Variables spécifiques à l'ascenseur
+        let elevatorPlatform;
+        let elevatorData;
+        let elevatorTargetY = 0;
+        let elevatorBtnObj;
 
         init();
         animate();
 
         function init() {
             const container = document.getElementById('canvas-container');
-
-            // 1. SCÈNE
             scene = new THREE.Scene();
-            scene.background = new THREE.Color( 0x87CEEB ); // Ciel bleu clair
-            scene.fog = new THREE.Fog( 0xffffff, 0, 750 ); // Brouillard pour la profondeur
+            scene.background = new THREE.Color( 0x87CEEB ); 
+            scene.fog = new THREE.Fog( 0xffffff, 0, 750 ); 
 
-            // 2. LUMIÈRES
             const light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 0.75 );
             light.position.set( 0.5, 1, 0.75 );
             scene.add( light );
@@ -271,67 +219,61 @@
             directionalLight.position.set(20, 50, 20);
             scene.add(directionalLight);
 
-            // 3. CAMÉRA
             camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
-            camera.position.y = 10; // Hauteur des yeux
+            camera.position.set(0, 10, 0); // Point de départ
 
-            // 4. CONTRÔLES
             controls = new PointerLockControls( camera, document.body );
-            
-            // Gestion de l'affichage des instructions
-            instructions.addEventListener( 'click', function () {
-                controls.lock();
-            });
-
-            window.addEventListener('controlsLocked', () => {
-                instructions.style.display = 'none';
-            });
-
+            instructions.addEventListener( 'click', () => controls.lock() );
+            window.addEventListener('controlsLocked', () => instructions.style.display = 'none');
             window.addEventListener('controlsUnlocked', () => {
                 instructions.style.display = 'flex';
-                // Cacher le message d'interaction si on met en pause
                 interactionMsg.style.display = 'none'; 
             });
 
-            // 5. ENVIRONNEMENT MULTI-SALLES
             createEnvironment();
 
-            // 6. RENDERER
             renderer = new THREE.WebGLRenderer( { antialias: true } );
             renderer.setPixelRatio( window.devicePixelRatio );
             renderer.setSize( window.innerWidth, window.innerHeight );
             container.appendChild( renderer.domElement );
 
-            // 7. ÉVÉNEMENTS
             window.addEventListener( 'resize', onWindowResize );
             document.addEventListener( 'keydown', onKeyDown );
             document.addEventListener( 'keyup', onKeyUp );
         }
 
-        // --- FONCTIONS DE CONSTRUCTION DU NIVEAU ---
-        function createWall(x, z, width, depth, color) {
-            const geometry = new THREE.BoxGeometry(width, 30, depth);
+        // NOUVEAU : createWall prend maintenant 'y' et 'height' pour supporter plusieurs étages
+        function createWall(x, y, z, width, height, depth, color) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
             const material = new THREE.MeshLambertMaterial({ color: color });
             const wall = new THREE.Mesh(geometry, material);
-            wall.position.set(x, 15, z);
+            wall.position.set(x, y + height/2, z);
             scene.add(wall);
-            // On enregistre les coordonnées du mur pour la gestion des collisions
+            // On enregistre les limites 3D du mur
             walls.push({
                 minX: x - width/2, maxX: x + width/2,
+                minY: y, maxY: y + height,
                 minZ: z - depth/2, maxZ: z + depth/2
             });
         }
 
-        function createFloor(x, z, width, depth, material) {
+        // NOUVEAU : createFloor prend 'y' pour définir la hauteur du plancher
+        function createFloor(x, y, z, width, depth, material) {
             const geometry = new THREE.PlaneGeometry(width, depth);
             const floor = new THREE.Mesh(geometry, material);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.set(x, 0, z);
+            floor.position.set(x, y, z);
             scene.add(floor);
+            // On ajoute cette zone comme un sol praticable
+            floors.push({
+                minX: x - width/2, maxX: x + width/2,
+                minZ: z - depth/2, maxZ: z + depth/2,
+                y: y
+            });
         }
 
-        function createInteractableObject(x, z, title, url, color, isCube=false) {
-            // Création d'une texture avec Canvas pour l'aperçu du texte
+        // NOUVEAU : actionType permet de différencier les liens web des mécanismes de jeu
+        function createInteractableObject(x, y, z, title, url, color, isCube=false, actionType="link") {
             const canvas = document.createElement('canvas');
             canvas.width = 512; canvas.height = 700;
             const ctx = canvas.getContext('2d');
@@ -339,7 +281,7 @@
             ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 36px sans-serif';
             ctx.textAlign = 'center'; ctx.fillText(title, 256, 80);
             ctx.fillStyle = '#7f8c8d'; ctx.textAlign = 'left'; ctx.font = '22px sans-serif';
-            ctx.fillText('Cliquez (E) pour lire...', 40, 150);
+            ctx.fillText("Appuyez sur 'E'", 40, 150);
             for(let i=0; i<12; i++) {
                 ctx.fillRect(40, 180 + i * 35, 432 - (Math.random() * 100), 15);
             }
@@ -350,28 +292,26 @@
             
             let geometry, materials;
             if (isCube) {
-                geometry = new THREE.BoxGeometry(5, 5, 5); // Style Mathématiques (cube)
+                geometry = new THREE.BoxGeometry(5, 5, 5); 
                 materials = [coverMat, coverMat, coverMat, coverMat, frontMat, coverMat];
             } else {
-                geometry = new THREE.BoxGeometry(4, 6, 0.5); // Style Page normale
+                geometry = new THREE.BoxGeometry(4, 6, 0.5); 
                 materials = [coverMat, coverMat, coverMat, coverMat, frontMat, coverMat];
             }
             
             const mesh = new THREE.Mesh(geometry, materials);
-            mesh.position.set(x, 10, z);
+            mesh.position.set(x, y + 10, z); // Flotte au-dessus du sol local (y)
             scene.add(mesh);
             
-            // Petit socle d'exposition
             const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 2, 16), new THREE.MeshLambertMaterial({color: 0x333333}));
-            base.position.set(x, 1, z);
+            base.position.set(x, y + 1, z);
             scene.add(base);
 
-            // On ajoute cet objet à la liste des interactions possibles
-            interactableObjects.push({ mesh: mesh, title: title, url: url });
+            // On stocke baseY pour l'animation de flottement
+            interactableObjects.push({ mesh: mesh, baseY: y + 10, title: title, url: url, actionType: actionType });
         }
 
         function createEnvironment() {
-            // -- TEXTURES ET MATÉRIAUX --
             const canvasChecker = document.createElement('canvas');
             canvasChecker.width = 128; canvasChecker.height = 128;
             const ctxC = canvasChecker.getContext('2d');
@@ -382,60 +322,113 @@
             texChecker.repeat.set(5, 10);
 
             const matHallway = new THREE.MeshLambertMaterial({ map: texChecker });
-            const matWood = new THREE.MeshLambertMaterial({ color: 0x8B5A2B }); // Sol bois
-            const matScience = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Sol sombre
-            const matMuseum = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); // Tapis rouge
+            const matWood = new THREE.MeshLambertMaterial({ color: 0x8B5A2B }); 
+            const matScience = new THREE.MeshLambertMaterial({ color: 0x111111 }); 
+            const matMuseum = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); 
+            const matConcrete = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
-            // --- 1. COULOIR CENTRAL (Point de départ) ---
-            createFloor(0, 0, 40, 100, matHallway);
-            createWall(0, 50, 40, 2, 0x7f8c8d); // Mur de derrière fermé
+            // --- REZ-DE-CHAUSSÉE (Y = 0) ---
             
-            // Murs Ouest (avec une ouverture au milieu pour le Français)
-            createWall(-20, 30, 2, 40, 0x7f8c8d);
-            createWall(-20, -30, 2, 40, 0x7f8c8d);
+            // Couloir central (De Z=-50 à Z=50)
+            createFloor(0, 0, 0, 40, 100, matHallway);
+            createWall(0, 0, 50, 40, 40, 2, 0x7f8c8d); // Mur de derrière
             
-            // Murs Est (avec une ouverture au milieu pour les Maths)
-            createWall(20, 30, 2, 40, 0x7f8c8d);
-            createWall(20, -30, 2, 40, 0x7f8c8d);
+            // Murs Ouest et Est du couloir
+            createWall(-20, 0, 30, 2, 40, 40, 0x7f8c8d); // Gauche (vers arrière)
+            createWall(-20, 0, -30, 2, 40, 40, 0x7f8c8d); // Gauche (vers avant)
+            createWall(20, 0, 30, 2, 40, 40, 0x7f8c8d); // Droite (vers arrière)
+            createWall(20, 0, -30, 2, 40, 40, 0x7f8c8d); // Droite (vers avant)
 
-            // --- 2. SALLE FRANÇAIS (Ouest) : Thème Bibliothèque ---
-            createFloor(-50, 0, 60, 60, matWood);
-            createWall(-80, 0, 2, 60, 0x5C4033); // Mur du fond
-            createWall(-50, -30, 60, 2, 0x5C4033); // Mur nord
-            createWall(-50, 30, 60, 2, 0x5C4033); // Mur sud
-            
+            // Salle Français (Ouest)
+            createFloor(-50, 0, 0, 60, 60, matWood);
+            createWall(-80, 0, 0, 2, 40, 60, 0x5C4033); 
+            createWall(-50, 0, -30, 60, 40, 2, 0x5C4033); 
+            createWall(-50, 0, 30, 60, 40, 2, 0x5C4033); 
             const lightFR = new THREE.PointLight(0xffddaa, 0.8, 100);
             lightFR.position.set(-50, 20, 0); scene.add(lightFR);
-            
-            createInteractableObject(-65, -10, "Dissertation Français", "bac_dissert_francais.html", 0xffd700);
+            createInteractableObject(-65, 0, -10, "Dissertation Français", "bac_dissert_francais.html", 0xffd700);
 
-
-            // --- 3. SALLE MATHS/SCIENCES (Est) : Thème Labo ---
-            createFloor(50, 0, 60, 60, matScience);
-            createWall(80, 0, 2, 60, 0x2c3e50); // Mur du fond
-            createWall(50, -30, 60, 2, 0x2c3e50); // Mur nord
-            createWall(50, 30, 60, 2, 0x2c3e50); // Mur sud
-            
+            // Salle Maths (Est)
+            createFloor(50, 0, 0, 60, 60, matScience);
+            createWall(80, 0, 0, 2, 40, 60, 0x2c3e50); 
+            createWall(50, 0, -30, 60, 40, 2, 0x2c3e50); 
+            createWall(50, 0, 30, 60, 40, 2, 0x2c3e50); 
             const lightMath = new THREE.PointLight(0x00ffff, 0.8, 100);
             lightMath.position.set(50, 20, 0); scene.add(lightMath);
-            
-            createInteractableObject(65, 10, "Projet Mathématiques", "maths.html", 0x00ffff, true);
+            createInteractableObject(65, 0, 10, "Projet Mathématiques", "maths.html", 0x00ffff, true);
 
-
-            // --- 4. SALLE HISTOIRE (Nord) : Thème Musée ---
-            createFloor(0, -80, 80, 60, matMuseum);
-            createWall(0, -110, 80, 2, 0xF5F5DC); // Mur du fond
-            createWall(-40, -80, 2, 60, 0xF5F5DC); // Mur ouest
-            createWall(40, -80, 2, 60, 0xF5F5DC); // Mur est
-            
-            // Mur avec une grande porte
-            createWall(-30, -50, 20, 2, 0xF5F5DC);
-            createWall(30, -50, 20, 2, 0xF5F5DC);
-            
+            // Salle Histoire (Nord/Devant)
+            createFloor(0, 0, -80, 80, 60, matMuseum);
+            createWall(0, 0, -110, 80, 40, 2, 0xF5F5DC); 
+            createWall(-40, 0, -80, 2, 40, 60, 0xF5F5DC); 
+            createWall(40, 0, -80, 2, 40, 60, 0xF5F5DC); 
+            createWall(-30, 0, -50, 20, 40, 2, 0xF5F5DC); // Murs porte
+            createWall(30, 0, -50, 20, 40, 2, 0xF5F5DC);
             const lightHist = new THREE.PointLight(0xffffff, 0.8, 100);
             lightHist.position.set(0, 20, -80); scene.add(lightHist);
+            createInteractableObject(0, 0, -95, "Exposé d'Histoire", "histoire.html", 0xe67e22);
+
+
+            // --- SYSTÈME D'ESCALIERS (Mène au 2ème étage) ---
+            // Escalier situé à droite dans le couloir central, qui monte vers l'avant
+            for(let i=0; i<20; i++) {
+                let sX = 13; // Position X (à droite du couloir)
+                let sZ = 30 - i * 1.5; // Z avance vers le nord (vers la porte Histoire)
+                let sY = i * 2; // Chaque marche monte de 2
+                
+                // Dessin visuel de la marche
+                const stepGeom = new THREE.BoxGeometry(10, 2, 1.5);
+                const stepMesh = new THREE.Mesh(stepGeom, matWood);
+                stepMesh.position.set(sX, sY + 1, sZ);
+                scene.add(stepMesh);
+                
+                // Ajout logique au tableau des sols pour pouvoir marcher dessus
+                floors.push({
+                    minX: sX - 5, maxX: sX + 5,
+                    minZ: sZ - 0.75, maxZ: sZ + 0.75,
+                    y: sY + 2
+                });
+            }
+            // Rampe de sécurité sous et autour de l'escalier
+            createWall(8, 0, 15, 1, 40, 30, 0xdddddd);
+
+
+            // --- SYSTÈME D'ASCENSEUR ---
+            // Intégré dans le mur gauche du couloir central (X = -25)
+            // Cage d'ascenseur (Murs qui montent jusqu'au 2ème)
+            createWall(-30, 0, 10, 2, 80, 10, 0x333333); // Fond
+            createWall(-25, 0, 5, 10, 80, 2, 0x333333); // Côté
+            createWall(-25, 0, 15, 10, 80, 2, 0x333333); // Côté
             
-            createInteractableObject(0, -95, "Exposé d'Histoire", "histoire.html", 0xe67e22);
+            // La plateforme mobile
+            const pGeom = new THREE.BoxGeometry(8, 1, 8);
+            elevatorPlatform = new THREE.Mesh(pGeom, matConcrete);
+            elevatorPlatform.position.set(-25, 0, 10);
+            scene.add(elevatorPlatform);
+            
+            // On enregistre les limites de l'ascenseur pour la détection du sol
+            elevatorData = {minX: -29, maxX: -21, minZ: 6, maxZ: 14, y: 0};
+
+            // Le Bouton de l'ascenseur (Objet interactif spécial)
+            createInteractableObject(-25, 0, 10, "Activer Ascenseur", "#", 0xe74c3c, true, "elevator");
+            elevatorBtnObj = interactableObjects[interactableObjects.length - 1]; // On garde la référence
+
+
+            // --- LE 2ÈME ÉTAGE : GALERIE D'ART (Y = 40) ---
+            // Plancher de la mezzanine (au-dessus d'une partie du couloir et de la salle histoire)
+            createFloor(0, 40, -20, 40, 60, matWood); // Z: de 10 à -50
+            
+            // Murs du 2ème étage (Hauteur 30)
+            createWall(0, 40, -50, 40, 30, 2, 0xffffff); // Mur du fond 2ème
+            createWall(-20, 40, -20, 2, 30, 60, 0xffffff); // Mur Gauche 2ème
+            createWall(20, 40, -20, 2, 30, 60, 0xffffff); // Mur Droit 2ème
+            createWall(0, 40, 10, 40, 10, 2, 0x88ccff); // Balustrade en verre/bleue (balcon)
+
+            const lightArt = new THREE.PointLight(0xffffff, 1, 100);
+            lightArt.position.set(0, 60, -20); scene.add(lightArt);
+
+            // Objet interactif exclusif au 2ème étage
+            createInteractableObject(0, 40, -40, "Galerie d'Art", "galerie.html", 0xff66cc);
         }
 
         function onWindowResize() {
@@ -446,58 +439,42 @@
 
         function onKeyDown( event ) {
             switch ( event.code ) {
-                case 'ArrowUp':
-                case 'KeyW':
-                    moveForward = true;
-                    break;
-                case 'ArrowLeft':
-                case 'KeyA':
-                case 'KeyQ': // Pour claviers AZERTY
-                    moveLeft = true;
-                    break;
-                case 'ArrowDown':
-                case 'KeyS':
-                    moveBackward = true;
-                    break;
-                case 'ArrowRight':
-                case 'KeyD':
-                    moveRight = true;
-                    break;
+                case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft': case 'KeyA': case 'KeyQ': moveLeft = true; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight': case 'KeyD': moveRight = true; break;
                 case 'Space':
-                    if ( canJump === true ) velocity.y += 350; // Force du saut
-                    canJump = false;
+                    if ( canJump === true ) { velocity.y += 350; canJump = false; }
                     break;
-                case 'KeyE':
-                    checkInteraction();
-                    break;
+                case 'KeyE': checkInteraction(); break;
             }
         }
 
         function onKeyUp( event ) {
             switch ( event.code ) {
-                case 'ArrowUp':
-                case 'KeyW':
-                    moveForward = false;
-                    break;
-                case 'ArrowLeft':
-                case 'KeyA':
-                case 'KeyQ':
-                    moveLeft = false;
-                    break;
-                case 'ArrowDown':
-                case 'KeyS':
-                    moveBackward = false;
-                    break;
-                case 'ArrowRight':
-                case 'KeyD':
-                    moveRight = false;
-                    break;
+                case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft': case 'KeyA': case 'KeyQ': moveLeft = false; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight': case 'KeyD': moveRight = false; break;
             }
         }
 
         function checkInteraction() {
             if (closestObject && controls.isLocked) {
-                // L'utilisateur a appuyé sur E en étant près d'un des objets
+                
+                // Si l'objet est l'ascenseur, on exécute la mécanique de jeu
+                if (closestObject.actionType === "elevator") {
+                    // Change la destination de l'ascenseur (0 ou 40)
+                    elevatorTargetY = elevatorTargetY === 0 ? 40 : 0;
+                    
+                    notificationMsg.innerText = "Ascenseur en mouvement...";
+                    notificationMsg.style.backgroundColor = "#e74c3c";
+                    notificationMsg.style.display = "block";
+                    setTimeout(() => notificationMsg.style.display = "none", 3000);
+                    return; // On ne déverrouille pas la caméra, on reste dans le jeu
+                }
+
+                // Sinon, c'est un lien classique vers une page
                 controls.unlock();
                 console.log("Redirection vers " + closestObject.url + "...");
                 window.location.href = closestObject.url;
@@ -506,24 +483,21 @@
 
         function animate() {
             requestAnimationFrame( animate );
-
             const time = performance.now();
+            let delta = ( time - prevTime ) / 1000;
+            if ( delta > 0.1 ) delta = 0.1;
 
             // 1. ANIMATION DES OBJETS INTERACTIFS
             interactableObjects.forEach((obj, index) => {
                 obj.mesh.rotation.y += 0.005;
-                // Flottement asynchrone pour chaque objet
-                obj.mesh.position.y = 10 + Math.sin(time * 0.002 + index) * 2;
+                // Flottement asynchrone basé sur leur hauteur d'origine (baseY)
+                obj.mesh.position.y = obj.baseY + Math.sin(time * 0.002 + index) * 2;
             });
 
-            // 2. GESTION DU DÉPLACEMENT AVEC COLLISIONS
+            // 2. PHYSIQUE, MOUVEMENT ET COLLISIONS
             if ( controls.isLocked === true ) {
-                let delta = ( time - prevTime ) / 1000;
-                if ( delta > 0.1 ) delta = 0.1;
-
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                velocity.y -= 9.8 * 100.0 * delta; 
 
                 direction.z = Number( moveForward ) - Number( moveBackward );
                 direction.x = Number( moveRight ) - Number( moveLeft );
@@ -533,53 +507,98 @@
                 if ( moveForward || moveBackward ) velocity.z -= direction.z * speed * delta;
                 if ( moveLeft || moveRight ) velocity.x -= direction.x * speed * delta;
 
-                // Position avant déplacement
                 const pos = controls.getObject().position;
                 const oldX = pos.x;
                 const oldZ = pos.z;
 
-                // Application du mouvement
                 controls.moveRight( - velocity.x * delta );
                 controls.moveForward( - velocity.z * delta );
-                pos.y += ( velocity.y * delta );
 
-                // Vérification des murs (Rayon de collision = 2)
-                const pr = 2; 
-                let collideX = false;
-                let collideZ = false;
+                // A. GESTION DES COLLISIONS AVEC LES MURS (En 3D)
+                const pr = 2; // Rayon du joueur
+                let collideX = false, collideZ = false;
 
                 for(let w of walls) {
-                    // Test collision sur l'axe X
-                    if (pos.x + pr > w.minX && pos.x - pr < w.maxX && oldZ + pr > w.minZ && oldZ - pr < w.maxZ) {
-                        collideX = true;
-                    }
-                    // Test collision sur l'axe Z
-                    if (oldX + pr > w.minX && oldX - pr < w.maxX && pos.z + pr > w.minZ && pos.z - pr < w.maxZ) {
-                        collideZ = true;
+                    // On vérifie si la tête ou les pieds du joueur touchent la hauteur du mur
+                    if (pos.y + 2 > w.minY && pos.y - 10 < w.maxY) {
+                        if (pos.x + pr > w.minX && pos.x - pr < w.maxX && oldZ + pr > w.minZ && oldZ - pr < w.maxZ) collideX = true;
+                        if (oldX + pr > w.minX && oldX - pr < w.maxX && pos.z + pr > w.minZ && pos.z - pr < w.maxZ) collideZ = true;
                     }
                 }
-
-                // Annuler le mouvement si on rentre dans un mur
                 if (collideX) pos.x = oldX;
                 if (collideZ) pos.z = oldZ;
 
-                // Gravité et sol
-                if ( pos.y < 10 ) {
-                    velocity.y = 0;
-                    pos.y = 10;
-                    canJump = true;
+                // B. GESTION DE L'ASCENSEUR (Mécanique mobile)
+                if (elevatorPlatform) {
+                    // Déplacement visuel de la plateforme
+                    if (Math.abs(elevatorPlatform.position.y - elevatorTargetY) > 0.1) {
+                        const dir = elevatorTargetY > elevatorPlatform.position.y ? 1 : -1;
+                        elevatorPlatform.position.y += dir * 15 * delta; // Vitesse 15 unités/sec
+                    } else {
+                        elevatorPlatform.position.y = elevatorTargetY; // Arrêt précis
+                    }
+                    // Mise à jour de la zone de sol logique
+                    elevatorData.y = elevatorPlatform.position.y;
+                    
+                    // Le bouton de l'ascenseur monte et descend avec la cabine
+                    elevatorBtnObj.baseY = elevatorPlatform.position.y + 5; 
                 }
-                
-                // On limite l'arrière pour ne pas tomber dans le vide au point d'apparition
-                if (pos.z > 48) pos.z = 48;
 
+                // C. DÉTECTION DU SOL (Quel étage / quelle marche est sous mes pieds ?)
+                let floorY = -100; // Si on tombe dans le vide
+                let onElevator = false;
 
-                // 3. LOGIQUE DE DISTANCE POUR LE MENU
+                // Cherche le plancher statique le plus haut sous le joueur
+                for (let f of floors) {
+                    if (pos.x >= f.minX && pos.x <= f.maxX && pos.z >= f.minZ && pos.z <= f.maxZ) {
+                        if (f.y > floorY) floorY = f.y;
+                    }
+                }
+                // Vérifie si on est sur la zone de l'ascenseur (écrase le sol statique)
+                if (pos.x >= elevatorData.minX && pos.x <= elevatorData.maxX && pos.z >= elevatorData.minZ && pos.z <= elevatorData.maxZ) {
+                    floorY = elevatorData.y;
+                    onElevator = true;
+                }
+
+                // D. APPLICATION DE LA GRAVITÉ ET DES ESCALIERS
+                const targetCameraY = floorY + 10; // La caméra est à 10 unités au-dessus des pieds
+
+                if (pos.y < targetCameraY) {
+                    // On doit monter (Escalier ou Ascenseur qui monte)
+                    if (targetCameraY - pos.y < 6) { 
+                        pos.y += (targetCameraY - pos.y) * 0.3; // Lissage très doux pour monter les marches
+                    } else {
+                        pos.y = targetCameraY; // Téléportation de secours si bug extrême
+                    }
+                    velocity.y = Math.max(0, velocity.y); // Annule la vitesse de chute
+                    canJump = true;
+
+                } else if (pos.y > targetCameraY) {
+                    // On tombe ou on saute
+                    velocity.y -= 9.8 * 100.0 * delta; // Gravité
+                    pos.y += velocity.y * delta;
+                    
+                    // Gestion de l'atterrissage
+                    if (pos.y <= targetCameraY) {
+                        pos.y = targetCameraY;
+                        velocity.y = 0;
+                        canJump = true;
+                    } 
+                    // Lissage pour descendre les escaliers doucement au lieu de rebondir
+                    else if (pos.y - targetCameraY < 2 && !canJump && !onElevator) {
+                        pos.y -= (pos.y - targetCameraY) * 0.4;
+                        velocity.y = 0;
+                        canJump = true;
+                    } else {
+                        canJump = false; // On est vraiment en l'air
+                    }
+                }
+
+                // E. LOGIQUE DE DISTANCE POUR L'INTERFACE (Quel objet est ciblé ?)
                 closestObject = null;
                 let minDistance = interactionDistance;
-
-                // On cherche l'objet le plus proche du joueur
                 interactableObjects.forEach(obj => {
+                    // On calcule la distance en 3D absolue
                     const distance = pos.distanceTo(obj.mesh.position);
                     if (distance < minDistance) {
                         minDistance = distance;
@@ -596,7 +615,6 @@
             }
 
             prevTime = time;
-
             renderer.render( scene, camera );
         }
     </script>
