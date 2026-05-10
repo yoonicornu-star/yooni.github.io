@@ -12,7 +12,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.5);
         }
         .card {
-            background-color: white; 
+            background-color: white;
             border-radius: 0.25rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             display: flex;
@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="pt-4 border-t border-stone-700">
-                    <button onclick="createTable()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition mb-4">
+                    <button id="btn-create" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition mb-4">
                         Créer une Table (Hôte)
                     </button>
                     
@@ -63,7 +63,7 @@
 
                     <div class="flex gap-2 mt-4">
                         <input type="text" id="join-game-id" class="w-2/3 bg-stone-900 border border-stone-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 uppercase" placeholder="ID de la partie">
-                        <button onclick="joinTable()" class="w-1/3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition">
+                        <button id="btn-join" class="w-1/3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition">
                             Rejoindre
                         </button>
                     </div>
@@ -85,10 +85,10 @@
                 <p id="game-phase-text" class="text-stone-400 text-sm">En attente de joueurs...</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="copyInviteLink()" class="bg-stone-700 hover:bg-stone-600 px-4 py-2 rounded text-sm transition">
+                <button id="btn-copy-link" class="bg-stone-700 hover:bg-stone-600 px-4 py-2 rounded text-sm transition">
                     Copier le Lien
                 </button>
-                <button id="btn-start" onclick="startGame()" class="hidden bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold transition">
+                <button id="btn-start" class="hidden bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold transition">
                     Démarrer la Partie
                 </button>
             </div>
@@ -136,10 +136,10 @@
 
                 <!-- Actions -->
                 <div id="action-buttons" class="flex gap-2 w-full md:w-auto opacity-50 pointer-events-none transition">
-                    <button onclick="fold()" class="flex-1 md:flex-none bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-bold">Se Coucher</button>
-                    <button onclick="checkCall()" id="btn-call" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold">Suivre</button>
+                    <button id="btn-fold" class="flex-1 md:flex-none bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-bold">Se Coucher</button>
+                    <button id="btn-call" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold">Suivre</button>
                     <div class="flex flex-1 md:flex-none gap-1">
-                        <button onclick="raise()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-l-lg font-bold">Relancer</button>
+                        <button id="btn-raise" class="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-l-lg font-bold">Relancer</button>
                         <input type="number" id="raise-amount" class="w-20 bg-stone-900 border border-green-600 rounded-r-lg px-2 text-center text-white outline-none" value="50" step="10">
                     </div>
                 </div>
@@ -199,10 +199,9 @@
             } else {
                 statusDiv.innerText = "Tentative de connexion anonyme...";
                 signInAnonymously(auth).catch((error) => {
-                    console.error("Erreur d'auth détaillée:", error);
                     statusDiv.innerText = "Erreur de connexion.";
                     statusDiv.classList.replace('text-yellow-500', 'text-red-500');
-                    alert(`Échec de connexion Firebase.\nCode: ${error.code}\nMessage: ${error.message}\n\nAvez-vous bien activé l'Authentification Anonyme dans la console Firebase ?`);
+                    alert(`Échec de connexion Firebase.\nCode: ${error.code}`);
                 });
             }
         });
@@ -228,11 +227,15 @@
             }
         }
 
-        window.createTable = async () => {
+        document.getElementById('btn-create').addEventListener('click', async () => {
             if (!currentUser) {
-                alert("Erreur : Vous n'êtes pas connecté à Firebase. Attendez que le texte indique 'Connecté aux serveurs'.");
+                alert("Erreur : Vous n'êtes pas connecté à Firebase. Attendez que le texte soit vert.");
                 return;
             }
+
+            const btn = document.getElementById('btn-create');
+            btn.innerText = "Création en cours...";
+            btn.disabled = true;
 
             const nameInput = document.getElementById('player-name').value.trim() || "Hôte";
             gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -240,9 +243,7 @@
             
             try {
                 window.history.replaceState({}, '', `?game=${gameId}`);
-            } catch(e) {
-                console.warn("Impossible de changer l'URL (normal si iframe)");
-            }
+            } catch(e) {}
 
             try {
                 const initialGameData = {
@@ -264,37 +265,51 @@
                     }]
                 };
 
-                // C'est ici que l'écriture Firebase se passe
                 await setDoc(doc(db, "games", gameId), initialGameData);
                 listenToGame();
                 showScreen('game-screen');
             } catch (error) {
-                console.error("Erreur de création détaillée :", error);
-                alert(`Erreur lors de la création de la table.\nCode: ${error.code}\nMessage: ${error.message}\n\nAvez-vous bien configuré les règles Firestore pour autoriser l'écriture ?`);
+                btn.innerText = "Créer une Table (Hôte)";
+                btn.disabled = false;
+                alert(`Erreur de base de données : ${error.message}`);
             }
-        };
+        });
 
-        window.joinTable = async () => {
-            if (!currentUser) return alert("Attendez d'être connecté.");
+        document.getElementById('btn-join').addEventListener('click', async () => {
+            if (!currentUser) return alert("Attendez d'être connecté (texte vert).");
 
             const nameInput = document.getElementById('player-name').value.trim() || "Joueur";
             let inputId = document.getElementById('join-game-id').value.trim().toUpperCase();
             if (!inputId) return alert("Veuillez entrer un ID de partie.");
             
+            const btn = document.getElementById('btn-join');
+            btn.innerText = "Recherche...";
+            btn.disabled = true;
+
             gameId = inputId;
             const gameRef = doc(db, "games", gameId);
             
             try {
                 const gameSnap = await getDoc(gameRef);
 
-                if (!gameSnap.exists()) return alert("Cette partie n'existe pas.");
+                if (!gameSnap.exists()) {
+                    btn.innerText = "Rejoindre";
+                    btn.disabled = false;
+                    return alert("Cette partie n'existe pas.");
+                }
 
                 let data = gameSnap.data();
                 const existingPlayer = data.players.find(p => p.uid === currentUser.uid);
                 
                 if (!existingPlayer) {
-                    if (data.players.length >= 5) return alert("La table est pleine.");
-                    if (data.state !== 'waiting') return alert("La partie a déjà commencé.");
+                    if (data.players.length >= 5) {
+                        btn.innerText = "Rejoindre"; btn.disabled = false;
+                        return alert("La table est pleine.");
+                    }
+                    if (data.state !== 'waiting') {
+                        btn.innerText = "Rejoindre"; btn.disabled = false;
+                        return alert("La partie a déjà commencé.");
+                    }
 
                     data.players.push({
                         uid: currentUser.uid,
@@ -315,12 +330,13 @@
                 listenToGame();
                 showScreen('game-screen');
             } catch (error) {
-                console.error(error);
-                alert("Erreur lors de la connexion à la table : " + error.message);
+                btn.innerText = "Rejoindre";
+                btn.disabled = false;
+                alert("Erreur réseau : " + error.message);
             }
-        };
+        });
 
-        window.copyInviteLink = () => {
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
             let url = window.location.href;
             if(!url.includes('?game=')) url = url.split('?')[0] + '?game=' + gameId;
             
@@ -335,7 +351,7 @@
                 document.body.removeChild(dummy);
                 alert("Lien copié (méthode de secours) !");
             });
-        };
+        });
 
         function listenToGame() {
             if (unsubscribe) unsubscribe();
@@ -346,7 +362,6 @@
                     renderGame();
                 }
             }, (error) => {
-                console.error("Erreur de synchronisation:", error);
                 alert("La synchronisation avec la partie a été perdue.");
             });
         }
@@ -383,14 +398,12 @@
                 document.getElementById('btn-start').classList.add('hidden');
             }
 
-            // Rendu du Board
             const boardContainer = document.getElementById('board-cards');
             boardContainer.innerHTML = '';
             localGameState.communityCards.forEach(c => {
                 boardContainer.innerHTML += getCardHTML(c);
             });
 
-            // Gérer ma place
             const myIndex = localGameState.players.findIndex(p => p.uid === currentUser.uid);
             const myPlayer = localGameState.players[myIndex];
             
@@ -405,7 +418,6 @@
                 }
             }
 
-            // Rendu des autres joueurs
             const playersContainer = document.getElementById('players-container');
             playersContainer.innerHTML = '';
             
@@ -438,7 +450,6 @@
                 displayIndex++;
             }
 
-            // Gestion boutons action
             const actionsDiv = document.getElementById('action-buttons');
             const callBtn = document.getElementById('btn-call');
             
@@ -468,7 +479,7 @@
             return deck;
         }
 
-        window.startGame = async () => {
+        document.getElementById('btn-start').addEventListener('click', async () => {
             if (!isHost) return;
             let deck = createDeck();
             let players = [...localGameState.players];
@@ -489,12 +500,11 @@
                 currentBet: 0,
                 currentTurnIndex: 0
             });
-        };
+        });
 
-        // Actions
-        window.fold = async () => { await processAction('fold'); };
-        window.checkCall = async () => { await processAction('call'); };
-        window.raise = async () => { await processAction('raise'); };
+        document.getElementById('btn-fold').addEventListener('click', async () => { await processAction('fold'); });
+        document.getElementById('btn-call').addEventListener('click', async () => { await processAction('call'); });
+        document.getElementById('btn-raise').addEventListener('click', async () => { await processAction('raise'); });
 
         async function processAction(actionType) {
             if (!localGameState || localGameState.state !== 'playing') return;
