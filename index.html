@@ -192,15 +192,15 @@
         let closestObject = null;     
         const interactionDistance = 15; 
         
-        // Nouveaux tableaux pour la gestion de la physique 3D
-        const walls = [];  // Murs (Bloquent sur X et Z en fonction de Y)
-        const floors = []; // Planchers (Définissent la hauteur de marche)
+        // Tableaux pour la gestion de la physique 3D
+        const walls = [];  
+        const floors = []; 
 
         // Variables spécifiques à l'ascenseur
         let elevatorPlatform;
         let elevatorData;
         let elevatorTargetY = 0;
-        let elevatorBtnObj;
+        let elevatorBtnObj; // Le bouton interne qui monte avec la cabine
 
         init();
         animate();
@@ -242,7 +242,6 @@
             document.addEventListener( 'keyup', onKeyUp );
         }
 
-        // NOUVEAU : createWall prend maintenant 'y' et 'height' pour supporter plusieurs étages
         function createWall(x, y, z, width, height, depth, color) {
             const geometry = new THREE.BoxGeometry(width, height, depth);
             const material = new THREE.MeshLambertMaterial({ color: color });
@@ -257,7 +256,6 @@
             });
         }
 
-        // NOUVEAU : createFloor prend 'y' pour définir la hauteur du plancher
         function createFloor(x, y, z, width, depth, material) {
             const geometry = new THREE.PlaneGeometry(width, depth);
             const floor = new THREE.Mesh(geometry, material);
@@ -272,12 +270,11 @@
             });
         }
 
-        // NOUVEAU : actionType permet de différencier les liens web des mécanismes de jeu
         function createInteractableObject(x, y, z, title, url, color, isCube=false, actionType="link") {
             const canvas = document.createElement('canvas');
             canvas.width = 512; canvas.height = 700;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#f9f9f9'; ctx.fillRect(0, 0, 512, 700);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 512, 700);
             ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 36px sans-serif';
             ctx.textAlign = 'center'; ctx.fillText(title, 256, 80);
             ctx.fillStyle = '#7f8c8d'; ctx.textAlign = 'left'; ctx.font = '22px sans-serif';
@@ -300,14 +297,13 @@
             }
             
             const mesh = new THREE.Mesh(geometry, materials);
-            mesh.position.set(x, y + 10, z); // Flotte au-dessus du sol local (y)
+            mesh.position.set(x, y + 10, z);
             scene.add(mesh);
             
             const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 2, 16), new THREE.MeshLambertMaterial({color: 0x333333}));
             base.position.set(x, y + 1, z);
             scene.add(base);
 
-            // On stocke baseY pour l'animation de flottement
             interactableObjects.push({ mesh: mesh, baseY: y + 10, title: title, url: url, actionType: actionType });
         }
 
@@ -327,23 +323,21 @@
             const matMuseum = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); 
             const matConcrete = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
-            // Plancher de secours invisible en sous-sol (empêche de tomber à l'infini en cas de bug)
+            // Plancher de secours
             createFloor(0, -2, 0, 300, 300, new THREE.MeshBasicMaterial({visible: false}));
 
             // --- REZ-DE-CHAUSSÉE (Y = 0) ---
+            createFloor(0, 0, 0, 40, 100, matHallway); // X de -20 à 20
+            createWall(0, 0, 50, 40, 40, 2, 0x7f8c8d); // Mur Arrière
             
-            // Couloir central (De Z=-50 à Z=50)
-            createFloor(0, 0, 0, 40, 100, matHallway);
-            createWall(0, 0, 50, 40, 40, 2, 0x7f8c8d); // Mur de derrière
-            
-            // Murs Ouest et Est du couloir
-            createWall(-20, 0, 30, 2, 40, 40, 0x7f8c8d); // Gauche (vers arrière)
-            createWall(-20, 0, -30, 2, 40, 40, 0x7f8c8d); // Gauche (vers avant)
-            createWall(20, 0, 30, 2, 40, 40, 0x7f8c8d); // Droite (vers arrière)
-            createWall(20, 0, -30, 2, 40, 40, 0x7f8c8d); // Droite (vers avant)
+            // Murs Couloir (Découpés pour laisser l'ascenseur)
+            createWall(-20, 0, -27.5, 2, 40, 45, 0x7f8c8d); // Gauche Avant
+            createWall(-20, 0, 27.5, 2, 40, 45, 0x7f8c8d);  // Gauche Arrière (Laisse trou de Z=-5 à 5)
+            createWall(20, 0, 30, 2, 40, 40, 0x7f8c8d); // Droite
+            createWall(20, 0, -30, 2, 40, 40, 0x7f8c8d); // Droite
 
-            // Salle Français (Ouest)
-            createFloor(-50, 0, 0, 60, 60, matWood);
+            // Salles (RDC)
+            createFloor(-50, 0, 0, 60, 60, matWood); // Français
             createWall(-80, 0, 0, 2, 40, 60, 0x5C4033); 
             createWall(-50, 0, -30, 60, 40, 2, 0x5C4033); 
             createWall(-50, 0, 30, 60, 40, 2, 0x5C4033); 
@@ -351,8 +345,7 @@
             lightFR.position.set(-50, 20, 0); scene.add(lightFR);
             createInteractableObject(-65, 0, -10, "Dissertation Français", "bac_dissert_francais.html", 0xffd700);
 
-            // Salle Maths (Est)
-            createFloor(50, 0, 0, 60, 60, matScience);
+            createFloor(50, 0, 0, 60, 60, matScience); // Maths
             createWall(80, 0, 0, 2, 40, 60, 0x2c3e50); 
             createWall(50, 0, -30, 60, 40, 2, 0x2c3e50); 
             createWall(50, 0, 30, 60, 40, 2, 0x2c3e50); 
@@ -360,78 +353,71 @@
             lightMath.position.set(50, 20, 0); scene.add(lightMath);
             createInteractableObject(65, 0, 10, "Projet Mathématiques", "maths.html", 0x00ffff, true);
 
-            // Salle Histoire (Nord/Devant)
-            createFloor(0, 0, -80, 80, 60, matMuseum);
+            createFloor(0, 0, -80, 80, 60, matMuseum); // Histoire
             createWall(0, 0, -110, 80, 40, 2, 0xF5F5DC); 
             createWall(-40, 0, -80, 2, 40, 60, 0xF5F5DC); 
             createWall(40, 0, -80, 2, 40, 60, 0xF5F5DC); 
-            createWall(-30, 0, -50, 20, 40, 2, 0xF5F5DC); // Murs porte
+            createWall(-30, 0, -50, 20, 40, 2, 0xF5F5DC); 
             createWall(30, 0, -50, 20, 40, 2, 0xF5F5DC);
             const lightHist = new THREE.PointLight(0xffffff, 0.8, 100);
             lightHist.position.set(0, 20, -80); scene.add(lightHist);
             createInteractableObject(0, 0, -95, "Exposé d'Histoire", "histoire.html", 0xe67e22);
 
-
-            // --- SYSTÈME D'ESCALIERS (Mène au 2ème étage) ---
-            // Escalier situé à droite dans le couloir central, qui monte vers l'avant
+            // --- SYSTÈME D'ESCALIERS ---
             for(let i=0; i<20; i++) {
-                let sX = 13; // Position X (à droite du couloir)
-                let sZ = 30 - i * 1.5; // Z avance vers le nord (vers la porte Histoire)
-                let sY = i * 2; // Chaque marche monte de 2
+                let sX = 13; 
+                let sZ = 30 - i * 1.5; // Monte vers Z=1.5
+                let sY = i * 2; 
                 
-                // Dessin visuel de la marche
-                const stepGeom = new THREE.BoxGeometry(10, 2, 1.5);
-                const stepMesh = new THREE.Mesh(stepGeom, matWood);
+                const stepMesh = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 1.5), matWood);
                 stepMesh.position.set(sX, sY + 1, sZ);
                 scene.add(stepMesh);
                 
-                // CORRECTION : On élargit la zone de sol pour que les marches se chevauchent 
-                // Ça empêche le personnage de "tomber" entre deux marches.
-                floors.push({
-                    minX: sX - 5, maxX: sX + 5,
-                    minZ: sZ - 1.5, maxZ: sZ + 1.5,
-                    y: sY + 2
-                });
+                floors.push({ minX: sX - 5, maxX: sX + 5, minZ: sZ - 1.5, maxZ: sZ + 1.5, y: sY + 2 });
             }
-            // Rampe de sécurité sous et autour de l'escalier
-            createWall(8, 0, 15, 1, 40, 30, 0xdddddd);
+            createWall(8, 0, 15, 1, 40, 30, 0xdddddd); // Mur sous l'escalier
 
-
-            // --- SYSTÈME D'ASCENSEUR ---
-            // Intégré dans le mur gauche du couloir central (X = -25)
-            // Cage d'ascenseur (Murs qui montent jusqu'au 2ème)
-            createWall(-30, 0, 10, 2, 80, 10, 0x333333); // Fond
-            createWall(-25, 0, 5, 10, 80, 2, 0x333333); // Côté
-            createWall(-25, 0, 15, 10, 80, 2, 0x333333); // Côté
+            // --- SYSTÈME D'ASCENSEUR (Aligné dans le mur gauche) ---
+            createWall(-29, 0, 0, 2, 80, 10, 0x333333); // Fond
+            createWall(-24, 0, -5, 10, 80, 2, 0x333333); // Côté Arrière
+            createWall(-24, 0, 5, 10, 80, 2, 0x333333); // Côté Avant
             
-            // La plateforme mobile
-            const pGeom = new THREE.BoxGeometry(8, 1, 8);
-            elevatorPlatform = new THREE.Mesh(pGeom, matConcrete);
-            elevatorPlatform.position.set(-25, 0, 10);
+            elevatorPlatform = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 8), matConcrete);
+            elevatorPlatform.position.set(-24, 0, 0);
             scene.add(elevatorPlatform);
+            elevatorData = {minX: -28, maxX: -20, minZ: -4, maxZ: 4, y: 0};
+
+            // Boutons d'interaction Ascenseur
+            createInteractableObject(-24, 0, 0, "Activer Ascenseur", "#", 0x2ecc71, true, "elevator");
+            elevatorBtnObj = interactableObjects[interactableObjects.length - 1]; // Bouton cabine
             
-            // CORRECTION : Zone de l'ascenseur élargie pour monter dessus sans accroc
-            elevatorData = {minX: -29.5, maxX: -20.5, minZ: 5.5, maxZ: 14.5, y: 0};
-
-            // Le Bouton de l'ascenseur (Objet interactif spécial)
-            createInteractableObject(-25, 0, 10, "Activer Ascenseur", "#", 0xe74c3c, true, "elevator");
-            elevatorBtnObj = interactableObjects[interactableObjects.length - 1]; // On garde la référence
-
+            // Boutons d'appel externes (Accessibles et fixes)
+            createInteractableObject(-19, 0, 7, "Appeler (RDC)", "#", 0xe74c3c, true, "call_elevator_0");
+            createInteractableObject(-19, 40, 7, "Appeler (2ème)", "#", 0xe74c3c, true, "call_elevator_40");
 
             // --- LE 2ÈME ÉTAGE : GALERIE D'ART (Y = 40) ---
-            // CORRECTION : Plancher de la mezzanine élargi pour combler le trou avec l'ascenseur
-            createFloor(0, 40, -20, 50, 60, matWood); // X élargi à 50
+            // Planchers multiples pour laisser un vrai trou pour l'escalier (X=8 à 18, Z=0 à 10)
+            createFloor(0, 40, -25, 40, 50, matWood); // Arrière (X de -20 à 20, Z de -50 à 0)
+            createFloor(-6, 40, 5, 28, 10, matWood);  // Avant Gauche (Couvre l'ascenseur)
+            createFloor(19, 40, 5, 2, 10, matWood);   // Avant Droite (Petit bout à côté de l'escalier)
             
-            // Murs du 2ème étage (Hauteur 30)
-            createWall(0, 40, -50, 50, 30, 2, 0xffffff); // Mur du fond 2ème
-            createWall(-25, 40, -20, 2, 30, 60, 0xffffff); // Mur Gauche 2ème (Poussé pour s'aligner)
-            createWall(25, 40, -20, 2, 30, 60, 0xffffff); // Mur Droit 2ème
-            createWall(0, 40, 10, 50, 10, 2, 0x88ccff); // Balustrade en verre/bleue (balcon)
+            // Murs du 2ème
+            createWall(0, 40, -50, 40, 30, 2, 0xffffff); // Mur Fond
+            createWall(-20, 40, -27.5, 2, 30, 45, 0xffffff); // Mur Gauche Arrière
+            createWall(-20, 40, 7.5, 2, 30, 5, 0xffffff); // Mur Gauche Avant (Ferme le couloir de l'ascenseur)
+            createWall(20, 40, -20, 2, 30, 60, 0xffffff); // Mur Droit
+            
+            // Garde-corps en verre autour du grand vide
+            createWall(-6, 40, 10, 28, 10, 2, 0x88ccff); // Balcon avant gauche
+            createWall(19, 40, 10, 2, 10, 2, 0x88ccff); // Balcon avant droite
+            
+            // Garde-corps AUTOUR du trou de l'escalier (Pour ne pas tomber)
+            createWall(8, 40, 5, 1, 10, 10, 0x88ccff); // Mur gauche de l'escalier
+            createWall(18, 40, 5, 1, 10, 10, 0x88ccff); // Mur droit de l'escalier
+            createWall(13, 40, 0, 10, 10, 1, 0x88ccff); // Mur arrière de l'escalier (Arrivée)
 
             const lightArt = new THREE.PointLight(0xffffff, 1, 100);
             lightArt.position.set(0, 60, -20); scene.add(lightArt);
-
-            // Objet interactif exclusif au 2ème étage
             createInteractableObject(0, 40, -40, "Galerie d'Art", "galerie.html", 0xff66cc);
         }
 
@@ -466,19 +452,31 @@
         function checkInteraction() {
             if (closestObject && controls.isLocked) {
                 
-                // Si l'objet est l'ascenseur, on exécute la mécanique de jeu
+                // Système d'ascenseur intelligent
                 if (closestObject.actionType === "elevator") {
-                    // Change la destination de l'ascenseur (0 ou 40)
                     elevatorTargetY = elevatorTargetY === 0 ? 40 : 0;
-                    
-                    notificationMsg.innerText = "Ascenseur en mouvement...";
+                    notificationMsg.innerText = "Ascenseur activé...";
+                    notificationMsg.style.backgroundColor = "#2ecc71";
+                    notificationMsg.style.display = "block";
+                    setTimeout(() => notificationMsg.style.display = "none", 3000);
+                    return; 
+                } else if (closestObject.actionType === "call_elevator_0") {
+                    elevatorTargetY = 0;
+                    notificationMsg.innerText = "L'ascenseur descend au RDC...";
                     notificationMsg.style.backgroundColor = "#e74c3c";
                     notificationMsg.style.display = "block";
                     setTimeout(() => notificationMsg.style.display = "none", 3000);
-                    return; // On ne déverrouille pas la caméra, on reste dans le jeu
+                    return; 
+                } else if (closestObject.actionType === "call_elevator_40") {
+                    elevatorTargetY = 40;
+                    notificationMsg.innerText = "L'ascenseur monte au 2ème...";
+                    notificationMsg.style.backgroundColor = "#e74c3c";
+                    notificationMsg.style.display = "block";
+                    setTimeout(() => notificationMsg.style.display = "none", 3000);
+                    return; 
                 }
 
-                // Sinon, c'est un lien classique vers une page
+                // Liens vers les autres pages
                 controls.unlock();
                 console.log("Redirection vers " + closestObject.url + "...");
                 window.location.href = closestObject.url;
@@ -489,16 +487,14 @@
             requestAnimationFrame( animate );
             const time = performance.now();
             let delta = ( time - prevTime ) / 1000;
-            if ( delta > 0.1 ) delta = 0.1;
+            if ( delta > 0.1 ) delta = 0.1; // Empêche la téléportation après un lag
 
-            // 1. ANIMATION DES OBJETS INTERACTIFS
+            // Animation des objets interactifs
             interactableObjects.forEach((obj, index) => {
-                obj.mesh.rotation.y += 0.005;
-                // Flottement asynchrone basé sur leur hauteur d'origine (baseY)
+                obj.mesh.rotation.y += 0.005; // Ralenti pour être lisible
                 obj.mesh.position.y = obj.baseY + Math.sin(time * 0.002 + index) * 2;
             });
 
-            // 2. PHYSIQUE, MOUVEMENT ET COLLISIONS
             if ( controls.isLocked === true ) {
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
@@ -518,24 +514,22 @@
                 controls.moveRight( - velocity.x * delta );
                 controls.moveForward( - velocity.z * delta );
 
-                // A. GESTION DES COLLISIONS AVEC LES MURS (En 3D)
-                // CORRECTION : Vous allez maintenant "glisser" contre les murs au lieu d'être bloqué
+                // A. GESTION DES COLLISIONS (Glissade contre les murs)
                 const pr = 2.5; // Rayon du joueur
                 
-                // 1. Test de collision sur l'axe X (Gauche / Droite)
+                // Test X
                 let testX = pos.x;
                 let testZ = oldZ;
                 let collideX = false;
                 for(let w of walls) {
-                    // pos.y - 9 (au lieu de 10) empêche vos pieds de s'accrocher au mur de l'étage du dessous
                     if (pos.y + 2 > w.minY && pos.y - 9 < w.maxY) {
                         if (testX + pr > w.minX && testX - pr < w.maxX && testZ + pr > w.minZ && testZ - pr < w.maxZ) { collideX = true; break; }
                     }
                 }
                 if (collideX) pos.x = oldX;
 
-                // 2. Test de collision sur l'axe Z (Avant / Arrière)
-                testX = pos.x; // Prend la nouvelle position X (corrigée ou non)
+                // Test Z
+                testX = pos.x; 
                 testZ = pos.z;
                 let collideZ = false;
                 for(let w of walls) {
@@ -545,79 +539,68 @@
                 }
                 if (collideZ) pos.z = oldZ;
 
-
-                // B. GESTION DE L'ASCENSEUR (Mécanique mobile)
+                // B. GESTION DE L'ASCENSEUR 
                 if (elevatorPlatform) {
-                    // Déplacement visuel de la plateforme
                     if (Math.abs(elevatorPlatform.position.y - elevatorTargetY) > 0.1) {
                         const dir = elevatorTargetY > elevatorPlatform.position.y ? 1 : -1;
-                        elevatorPlatform.position.y += dir * 15 * delta; // Vitesse 15 unités/sec
+                        elevatorPlatform.position.y += dir * 15 * delta; 
                     } else {
-                        elevatorPlatform.position.y = elevatorTargetY; // Arrêt précis
+                        elevatorPlatform.position.y = elevatorTargetY; 
                     }
-                    // Mise à jour de la zone de sol logique
                     elevatorData.y = elevatorPlatform.position.y;
                     
-                    // Le bouton de l'ascenseur monte et descend avec la cabine
+                    // Le bouton interne monte/descend avec la cabine
                     elevatorBtnObj.baseY = elevatorPlatform.position.y + 5; 
                 }
 
-                // C. DÉTECTION DU SOL (Quel étage / quelle marche est sous mes pieds ?)
-                let floorY = -100; // Si on tombe dans le vide
+                // C. DÉTECTION DU SOL 
+                let floorY = -100; 
                 let onElevator = false;
 
-                // Cherche le plancher statique le plus haut sous le joueur
                 for (let f of floors) {
                     if (pos.x >= f.minX && pos.x <= f.maxX && pos.z >= f.minZ && pos.z <= f.maxZ) {
                         if (f.y > floorY) floorY = f.y;
                     }
                 }
-                // Vérifie si on est sur la zone de l'ascenseur (écrase le sol statique)
+                
                 if (pos.x >= elevatorData.minX && pos.x <= elevatorData.maxX && pos.z >= elevatorData.minZ && pos.z <= elevatorData.maxZ) {
                     floorY = elevatorData.y;
                     onElevator = true;
                 }
 
-                // D. APPLICATION DE LA GRAVITÉ ET DES ESCALIERS
-                const targetCameraY = floorY + 10; // La caméra est à 10 unités au-dessus des pieds
+                // D. GRAVITÉ ET DÉPLACEMENTS VERTICAUX
+                const targetCameraY = floorY + 10; 
 
                 if (pos.y < targetCameraY) {
-                    // On doit monter (Escalier ou Ascenseur qui monte)
-                    // CORRECTION : Lissage plus long pour monter les marches en douceur
                     if (targetCameraY - pos.y < 8) { 
-                        pos.y += (targetCameraY - pos.y) * 0.15; 
+                        pos.y += (targetCameraY - pos.y) * 0.15; // Lissage
                     } else {
-                        pos.y = targetCameraY; // Téléportation de secours si bug extrême
+                        pos.y = targetCameraY; 
                     }
-                    velocity.y = Math.max(0, velocity.y); // Annule la vitesse de chute
+                    velocity.y = Math.max(0, velocity.y);
                     canJump = true;
 
                 } else if (pos.y > targetCameraY) {
-                    // On tombe ou on saute
-                    velocity.y -= 9.8 * 100.0 * delta; // Gravité
+                    velocity.y -= 9.8 * 100.0 * delta; // Chute
                     pos.y += velocity.y * delta;
                     
-                    // Gestion de l'atterrissage
                     if (pos.y <= targetCameraY) {
                         pos.y = targetCameraY;
                         velocity.y = 0;
                         canJump = true;
-                    } 
-                    // Lissage pour descendre les escaliers doucement au lieu de rebondir
-                    else if (pos.y - targetCameraY < 2 && !canJump && !onElevator) {
+                    } else if (pos.y - targetCameraY < 2 && !canJump && !onElevator) {
                         pos.y -= (pos.y - targetCameraY) * 0.4;
                         velocity.y = 0;
                         canJump = true;
                     } else {
-                        canJump = false; // On est vraiment en l'air
+                        canJump = false; 
                     }
                 }
 
-                // E. LOGIQUE DE DISTANCE POUR L'INTERFACE (Quel objet est ciblé ?)
+                // E. LOGIQUE DE L'INTERFACE D'INTERACTION
                 closestObject = null;
                 let minDistance = interactionDistance;
                 interactableObjects.forEach(obj => {
-                    // On calcule la distance en 3D absolue
                     const distance = pos.distanceTo(obj.mesh.position);
                     if (distance < minDistance) {
                         minDistance = distance;
@@ -626,7 +609,7 @@
                 });
 
                 if (closestObject) {
-                    interactionMsg.innerText = "Appuyez sur 'E' pour ouvrir : " + closestObject.title;
+                    interactionMsg.innerText = "Appuyez sur 'E' pour : " + closestObject.title;
                     interactionMsg.style.display = 'block';
                 } else {
                     interactionMsg.style.display = 'none';
