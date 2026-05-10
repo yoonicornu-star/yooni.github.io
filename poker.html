@@ -68,6 +68,10 @@
                         </button>
                     </div>
                 </div>
+                <!-- Indicateur de statut de connexion -->
+                <div id="connection-status" class="text-center text-sm text-yellow-500">
+                    Connexion à Firebase en cours...
+                </div>
             </div>
         </div>
     </div>
@@ -144,7 +148,6 @@
         </div>
     </div>
 
-    <!-- Firebase SDK (Version 11.6.1) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -161,9 +164,14 @@
             measurementId: "G-TY1X01S31D"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (error) {
+            alert("Erreur critique d'initialisation Firebase : " + error.message);
+        }
 
         let currentUser = null;
         let gameId = null;
@@ -171,24 +179,30 @@
         let unsubscribe = null;
         let localGameState = null;
 
-        // Positions des joueurs autour de la table
+        // Positions des joueurs
         const positions = [
-            "bottom-[-20px] left-1/2 -translate-x-1/2", // Moi (toujours en bas)
-            "top-[10%] left-[-20px] -translate-y-1/2",   // Joueur 2 (Gauche)
-            "top-[-30px] left-1/3 -translate-x-1/2",     // Joueur 3 (Haut Gauche)
-            "top-[-30px] right-1/3 translate-x-1/2",     // Joueur 4 (Haut Droite)
-            "top-[10%] right-[-20px] -translate-y-1/2"   // Joueur 5 (Droite)
+            "bottom-[-20px] left-1/2 -translate-x-1/2",
+            "top-[10%] left-[-20px] -translate-y-1/2",
+            "top-[-30px] left-1/3 -translate-x-1/2",
+            "top-[-30px] right-1/3 translate-x-1/2",
+            "top-[10%] right-[-20px] -translate-y-1/2"
         ];
 
-        // Vérification de connexion
+        const statusDiv = document.getElementById('connection-status');
+        
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
+                statusDiv.innerText = "Connecté aux serveurs.";
+                statusDiv.classList.replace('text-yellow-500', 'text-green-500');
                 checkUrlForGame();
             } else {
+                statusDiv.innerText = "Tentative de connexion anonyme...";
                 signInAnonymously(auth).catch((error) => {
-                    console.error("Erreur d'authentification:", error);
-                    alert("Impossible de se connecter au serveur de jeu. Vérifiez que l'authentification anonyme est activée sur Firebase.");
+                    console.error("Erreur d'auth détaillée:", error);
+                    statusDiv.innerText = "Erreur de connexion.";
+                    statusDiv.classList.replace('text-yellow-500', 'text-red-500');
+                    alert(`Échec de connexion Firebase.\nCode: ${error.code}\nMessage: ${error.message}\n\nAvez-vous bien activé l'Authentification Anonyme dans la console Firebase ?`);
                 });
             }
         });
@@ -214,10 +228,9 @@
             }
         }
 
-        // CREER UNE TABLE
         window.createTable = async () => {
             if (!currentUser) {
-                alert("La connexion à Firebase n'est pas prête.");
+                alert("Erreur : Vous n'êtes pas connecté à Firebase. Attendez que le texte indique 'Connecté aux serveurs'.");
                 return;
             }
 
@@ -227,15 +240,17 @@
             
             try {
                 window.history.replaceState({}, '', `?game=${gameId}`);
-            } catch(e) {}
+            } catch(e) {
+                console.warn("Impossible de changer l'URL (normal si iframe)");
+            }
 
             try {
                 const initialGameData = {
-                    state: 'waiting', // waiting, playing, showdown
+                    state: 'waiting',
                     pot: 0,
                     currentBet: 0,
                     currentTurnIndex: 0,
-                    phase: 'preflop', // preflop, flop, turn, river
+                    phase: 'preflop',
                     communityCards: [],
                     deck: [],
                     players: [{
@@ -249,18 +264,18 @@
                     }]
                 };
 
+                // C'est ici que l'écriture Firebase se passe
                 await setDoc(doc(db, "games", gameId), initialGameData);
                 listenToGame();
                 showScreen('game-screen');
             } catch (error) {
-                console.error(error);
-                alert("Erreur de base de données : " + error.message);
+                console.error("Erreur de création détaillée :", error);
+                alert(`Erreur lors de la création de la table.\nCode: ${error.code}\nMessage: ${error.message}\n\nAvez-vous bien configuré les règles Firestore pour autoriser l'écriture ?`);
             }
         };
 
-        // REJOINDRE UNE TABLE
         window.joinTable = async () => {
-            if (!currentUser) return alert("Connexion Firebase non prête.");
+            if (!currentUser) return alert("Attendez d'être connecté.");
 
             const nameInput = document.getElementById('player-name').value.trim() || "Joueur";
             let inputId = document.getElementById('join-game-id').value.trim().toUpperCase();
@@ -301,7 +316,7 @@
                 showScreen('game-screen');
             } catch (error) {
                 console.error(error);
-                alert("Erreur de base de données : " + error.message);
+                alert("Erreur lors de la connexion à la table : " + error.message);
             }
         };
 
@@ -335,10 +350,6 @@
                 alert("La synchronisation avec la partie a été perdue.");
             });
         }
-
-        // ==========================================
-        // MOTEUR DU JEU
-        // ==========================================
 
         function getCardHTML(card, hidden = false) {
             if (!card || hidden) {
@@ -379,7 +390,7 @@
                 boardContainer.innerHTML += getCardHTML(c);
             });
 
-            // Gérer ma place (toujours en bas)
+            // Gérer ma place
             const myIndex = localGameState.players.findIndex(p => p.uid === currentUser.uid);
             const myPlayer = localGameState.players[myIndex];
             
@@ -394,20 +405,18 @@
                 }
             }
 
-            // Rendu des autres joueurs autour de la table
+            // Rendu des autres joueurs
             const playersContainer = document.getElementById('players-container');
             playersContainer.innerHTML = '';
             
             let displayIndex = 0;
             for (let i = 0; i < localGameState.players.length; i++) {
-                // Pour faire tourner l'ordre et m'afficher en bas (index 0 de mon point de vue)
                 let actualIndex = (myIndex + i) % localGameState.players.length;
                 let p = localGameState.players[actualIndex];
                 
                 let isMe = p.uid === currentUser.uid;
                 let posClass = positions[displayIndex];
                 
-                // Cacher les cartes des autres sauf au showdown
                 let showCards = isMe || localGameState.state === 'showdown';
                 let card1HTML = p.cards && p.cards.length > 0 ? getCardHTML(p.cards[0], !showCards) : '';
                 let card2HTML = p.cards && p.cards.length > 1 ? getCardHTML(p.cards[1], !showCards) : '';
@@ -415,7 +424,6 @@
                 let activeClass = (localGameState.state === 'playing' && localGameState.currentTurnIndex === actualIndex && !p.folded) ? 'active-turn bg-stone-700' : 'bg-stone-800';
                 let statusText = p.folded ? '<span class="text-red-500 text-xs">Couché</span>' : `<span class="text-stone-400 text-xs">Mise: ${p.bet} $</span>`;
 
-                // On n'affiche pas le joueur principal sur la table (il est dans le panneau du bas), sauf son jeton/nom
                 let avatarHTML = `
                     <div class="absolute ${posClass} player-seat flex flex-col items-center gap-2">
                         ${!isMe ? `<div class="flex gap-1">${card1HTML}${card2HTML}</div>` : ''}
@@ -430,7 +438,7 @@
                 displayIndex++;
             }
 
-            // Gestion des boutons d'action
+            // Gestion boutons action
             const actionsDiv = document.getElementById('action-buttons');
             const callBtn = document.getElementById('btn-call');
             
@@ -453,7 +461,6 @@
                     deck.push({ suit: s, rank: r });
                 }
             }
-            // Shuffle
             for (let i = deck.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -484,7 +491,7 @@
             });
         };
 
-        // ACTIONS JOUEURS
+        // Actions
         window.fold = async () => { await processAction('fold'); };
         window.checkCall = async () => { await processAction('call'); };
         window.raise = async () => { await processAction('raise'); };
@@ -509,7 +516,7 @@
                 let amountToCall = state.currentBet - player.bet;
                 let totalBet = amountToCall + raiseAmt;
                 
-                if (totalBet > player.chips) totalBet = player.chips; // All in
+                if (totalBet > player.chips) totalBet = player.chips;
                 
                 player.chips -= totalBet;
                 player.bet += totalBet;
@@ -517,23 +524,16 @@
                 state.currentBet = player.bet;
             }
 
-            // Vérifier si la ronde est finie (tout le monde a check/suivi ou fold)
             let activePlayers = state.players.filter(p => !p.folded);
             let playersNeedingToAct = activePlayers.filter(p => p.bet < state.currentBet && p.chips > 0);
             
             if (activePlayers.length === 1) {
-                // Tout le monde s'est couché, le dernier gagne
                 activePlayers[0].chips += state.pot;
                 state.state = 'waiting';
                 alert(activePlayers[0].name + " gagne " + state.pot + " $ !");
             } else {
-                // Chercher le prochain joueur actif
                 let nextIdx = (pIndex + 1) % state.players.length;
                 let startSearch = nextIdx;
-                let turnAdvanced = false;
-
-                // Si plus personne ne doit agir ET on est revenu au début des paris (ou tout le monde a checké)
-                // Logique simplifiée: si tout le monde actif a misé currentBet
                 let roundOver = playersNeedingToAct.length === 0 && (pIndex === state.players.length - 1 || state.currentBet > 0 || actionType === 'call');
 
                 if (roundOver) {
@@ -551,11 +551,9 @@
         }
 
         function advancePhase(state) {
-            // Remettre les paris à 0 pour la nouvelle phase
             state.players.forEach(p => p.bet = 0);
             state.currentBet = 0;
             state.currentTurnIndex = 0;
-            // Assurer que le premier index n'est pas foldé
             while(state.players[state.currentTurnIndex].folded) {
                 state.currentTurnIndex = (state.currentTurnIndex + 1) % state.players.length;
             }
@@ -580,7 +578,6 @@
             let winner = active[0];
             let maxHighCard = 0;
 
-            // Évaluation extrêmement basique (Carte la plus haute uniquement, pour simplifier)
             active.forEach(p => {
                 let allCards = [...p.cards, ...state.communityCards];
                 let highest = Math.max(...allCards.map(c => c.rank));
