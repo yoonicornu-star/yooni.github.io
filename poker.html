@@ -3,353 +3,421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Texas Hold'em Poker Multijoueur</title>
+    <title>Poker Multijoueur</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #1a202c; color: white; margin: 0; overflow: hidden; }
         .poker-table {
-            background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
-            border: 15px solid #5d4037;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.8);
-        }
-        .card {
-            width: 60px; height: 85px;
-            background-color: white; color: black;
-            border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column; justify-content: space-between;
-            padding: 5px; box-sizing: border-box; font-weight: bold; font-size: 1.2rem;
+            background: #0a5c36;
+            border: 12px solid #5c3a21;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 9999px;
             position: relative;
         }
-        .card.red { color: #d32f2f; }
-        .card-back {
-            background: linear-gradient(135deg, #1976d2 25%, transparent 25%) -20px 0,
-                        linear-gradient(225deg, #1976d2 25%, transparent 25%) -20px 0,
-                        linear-gradient(315deg, #1976d2 25%, transparent 25%),
-                        linear-gradient(45deg, #1976d2 25%, transparent 25%);
-            background-size: 40px 40px;
-            background-color: #1565c0;
-            border: 2px solid white;
+        .card {
+            width: 50px;
+            height: 75px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            user-select: none;
         }
-        .suit-center { font-size: 2rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        .chip {
-            width: 30px; height: 30px; border-radius: 50%;
-            background: repeating-conic-gradient(#fff 0 15deg, #000 15deg 30deg);
-            display: inline-block; position: relative;
+        @media (min-width: 768px) {
+            .card { width: 70px; height: 100px; font-size: 28px; }
         }
-        .chip::after {
-            content: ''; position: absolute; top: 3px; left: 3px; right: 3px; bottom: 3px;
-            border-radius: 50%; background-color: #f44336; border: 2px dashed white;
+        .card.red { color: #dc2626; }
+        .card.black { color: #111827; }
+        .card-hidden {
+            background-color: #1e3a8a;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, #1e40af 10px, #1e40af 20px);
+            border: 2px solid #ffffff;
         }
+        .player-seat {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        /* Positions approximatives pour 5 joueurs autour de la table ovale */
+        .seat-0 { bottom: -20px; left: 50%; }
+        .seat-1 { top: 50%; left: -10px; }
+        .seat-2 { top: -20px; left: 30%; }
+        .seat-3 { top: -20px; left: 70%; }
+        .seat-4 { top: 50%; right: -10px; }
         
-        /* Positions des joueurs autour de la table */
-        .player-seat { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
-        .seat-0 { top: 85%; left: 50%; } /* Bas Centre (Moi) */
-        .seat-1 { top: 50%; left: 15%; } /* Gauche */
-        .seat-2 { top: 15%; left: 30%; } /* Haut Gauche */
-        .seat-3 { top: 15%; left: 70%; } /* Haut Droite */
-        .seat-4 { top: 50%; left: 85%; } /* Droite */
-        
-        .active-player-glow { box-shadow: 0 0 15px 5px #ffeb3b; }
-        
-        /* Notifications */
-        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 50; display: flex; flex-direction: column; gap: 10px; }
-        .notification { background-color: rgba(0,0,0,0.8); color: white; padding: 15px 20px; border-radius: 8px; transition: opacity 0.3s; }
+        .active-turn {
+            box-shadow: 0 0 15px 5px #fbbf24;
+            border-radius: 10px;
+        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col">
+<body class="bg-gray-900 text-white font-sans h-screen w-screen overflow-hidden flex flex-col items-center justify-center">
 
-    <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10">
-        <div>
-            <h1 class="text-2xl font-bold text-green-400">Texas Hold'em <span class="text-white text-sm" id="game-id-display"></span></h1>
-        </div>
-        <div class="flex gap-4 items-center">
-            <span id="connection-status" class="text-yellow-400 text-sm">Connexion...</span>
-            <button id="invite-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-semibold transition hidden">
-                🔗 Copier Lien d'Invitation
-            </button>
-        </div>
-    </header>
+    <div id="app" class="w-full h-full max-w-6xl mx-auto p-4 flex flex-col relative">
+        
+        <!-- Écran d'accueil -->
+        <div id="home-screen" class="flex flex-col items-center justify-center h-full space-y-6">
+            <h1 class="text-5xl font-bold text-green-400 mb-8 drop-shadow-lg">Poker Club</h1>
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md flex flex-col space-y-4 text-center">
+                <p class="text-gray-300">Bienvenue. Créez une nouvelle table ou rejoignez vos amis.</p>
+                <input type="text" id="player-name" placeholder="Votre Pseudo" class="px-4 py-3 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-green-500 font-bold" maxlength="10">
+                <button onclick="createTable()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 shadow-lg">Créer une Table</button>
+                
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-600"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-sm">OU</span>
+                    <div class="flex-grow border-t border-gray-600"></div>
+                </div>
 
-    <div id="notification-container"></div>
-
-    <!-- Menu Principal -->
-    <div id="main-menu-screen" class="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center">
-        <h2 class="text-5xl font-bold mb-12 text-green-400 drop-shadow-lg">Poker Room</h2>
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-700">
-            <button id="create-table-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-4 rounded-lg transition text-xl shadow-lg mb-8">
-                Créer une Table
-            </button>
-            <div class="flex items-center my-4">
-                <div class="flex-grow border-t border-gray-600"></div>
-                <span class="px-4 text-gray-400 font-semibold">OU</span>
-                <div class="flex-grow border-t border-gray-600"></div>
+                <div class="flex space-x-2">
+                    <input type="text" id="join-game-id" placeholder="ID de la partie" class="flex-grow px-4 py-3 rounded-lg text-black focus:outline-none uppercase">
+                    <button onclick="joinTable()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition shadow-lg">Rejoindre</button>
+                </div>
             </div>
-            <div class="mt-8 flex gap-2">
-                <input type="text" id="join-id-input" placeholder="ID de la table (ex: X7B9K)" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-400 focus:outline-none text-center text-lg uppercase">
-                <button id="join-table-menu-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded transition text-lg">
-                    Rejoindre
+        </div>
+
+        <!-- Écran de la partie -->
+        <div id="game-screen" class="hidden flex-col h-full w-full justify-between pb-8 pt-4">
+            <!-- Header avec le lien -->
+            <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl shadow-lg mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-green-400">Salle: <span id="display-game-id" class="text-white">...</span></h2>
+                    <p class="text-sm text-gray-400" id="game-status">En attente de joueurs...</p>
+                </div>
+                <button onclick="copyInviteLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-semibold flex items-center shadow-md">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    Copier l'invitation
                 </button>
+            </div>
+
+            <!-- Table de Poker -->
+            <div class="flex-grow flex items-center justify-center relative my-8">
+                <div class="poker-table w-full max-w-3xl aspect-[2/1] md:aspect-[2.5/1] flex flex-col items-center justify-center">
+                    
+                    <!-- Pot et Phase -->
+                    <div class="absolute top-1/4 flex flex-col items-center text-white/90">
+                        <span id="pot-display" class="bg-black/60 px-6 py-2 rounded-full text-xl font-bold border border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]">Pot: 0 $</span>
+                    </div>
+
+                    <!-- Cartes Communes (Board) -->
+                    <div id="community-cards" class="flex space-x-2 mt-8">
+                        <!-- Généré via JS -->
+                    </div>
+
+                    <!-- Emplacements des joueurs -->
+                    <div id="players-container" class="absolute w-full h-full pointer-events-none">
+                        <!-- Généré via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contrôles du joueur -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg w-full max-w-3xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gray-700 p-3 rounded-lg text-center min-w-[100px]">
+                        <p class="text-xs text-gray-400">Vos Jetons</p>
+                        <p id="my-chips" class="text-xl font-bold text-yellow-400">1000 $</p>
+                    </div>
+                </div>
+                
+                <div id="action-buttons" class="flex space-x-3 hidden">
+                    <button onclick="playAction('fold')" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">Se Coucher</button>
+                    <button onclick="playAction('call')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">Suivre/Check</button>
+                    <button onclick="playAction('raise')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg">Relancer (50$)</button>
+                </div>
+
+                <div id="host-controls" class="hidden">
+                    <button onclick="startGame()" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg animate-pulse">Démarrer / Prochaine Main</button>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Écran de chargement / Lobby -->
-    <div id="lobby-screen" class="absolute inset-0 bg-gray-900 z-40 flex flex-col items-center justify-center hidden">
-        <h2 class="text-4xl font-bold mb-4 text-green-400">Salle <span id="lobby-room-id" class="text-white"></span></h2>
-        <p class="text-gray-400 mb-8">Entrez votre pseudo pour rejoindre la table.</p>
-        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md w-full border border-gray-700">
-            <input type="text" id="player-name-input" placeholder="Votre Pseudo" class="w-full p-3 mb-6 rounded bg-gray-700 text-white border border-gray-600 focus:border-green-400 focus:outline-none text-center text-lg">
-            <button id="join-game-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition text-xl shadow-lg">
-                Entrer dans la partie
-            </button>
-            <button id="back-to-menu-btn" class="w-full mt-4 text-gray-400 hover:text-white transition text-sm">
-                ← Retour au menu principal
-            </button>
-            <div id="lobby-message" class="mt-4 text-red-400 font-semibold"></div>
-        </div>
-    </div>
-
-    <!-- Zone de jeu principale -->
-    <main class="flex-grow relative flex items-center justify-center overflow-hidden p-4" id="game-area" style="display: none;">
-        
-        <!-- Table de poker -->
-        <div class="poker-table w-full max-w-4xl aspect-[2/1] rounded-full relative flex items-center justify-center">
-            
-            <!-- Cartes communes et Pot au centre -->
-            <div class="absolute flex flex-col items-center gap-4">
-                <div class="text-xl font-bold bg-black/50 px-4 py-1 rounded-full text-yellow-400 flex items-center gap-2">
-                    Pot: <span id="main-pot">0</span> $
-                </div>
-                <div id="community-cards" class="flex gap-2 min-h-[85px]">
-                    <!-- Cartes communes générées ici -->
-                </div>
-                <div id="game-phase-display" class="text-sm text-gray-300 font-semibold tracking-widest uppercase bg-black/30 px-3 py-1 rounded">
-                    EN ATTENTE
-                </div>
-            </div>
-
-            <!-- Joueurs -->
-            <div id="players-container" class="absolute inset-0 pointer-events-none">
-                <!-- Joueurs générés ici -->
-            </div>
-            
-            <!-- Bouton Démarrer (visible seulement pour l'hôte ou si assez de joueurs) -->
-            <button id="start-game-btn" class="absolute bg-green-500 hover:bg-green-400 text-white font-bold py-3 px-6 rounded-full shadow-lg transition transform -translate-y-1/2 pointer-events-auto hidden z-20">
-                Démarrer la Partie
-            </button>
-        </div>
-
-    </main>
-
-    <footer id="player-controls" class="bg-gray-800 p-4 border-t border-gray-700 flex justify-between items-center z-10 hidden">
-        <div class="flex flex-col">
-            <span class="text-sm text-gray-400">Vos Jetons</span>
-            <span id="my-chips" class="text-2xl font-bold text-yellow-400">0 $</span>
-        </div>
-        
-        <div class="flex gap-4 flex-1 justify-center max-w-2xl">
-            <button id="btn-fold" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition">
-                Se Coucher
-            </button>
-            <button id="btn-call" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition">
-                Suivre (<span id="call-amount">0</span>)
-            </button>
-            <div class="flex-1 flex gap-2">
-                <input type="number" id="raise-input" class="w-20 bg-gray-700 text-white text-center rounded border border-gray-600 focus:border-yellow-400 focus:outline-none" min="0">
-                <button id="btn-raise" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition">
-                    Relancer
-                </button>
-            </div>
-        </div>
-    </footer>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Configuration Firebase (utilise la config globale de l'environnement)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // Fallback pour le dev local si besoin (laisser vide car injecté par le système)
+        /* VOTRE CONFIGURATION FIREBASE EXACTE */
+        const firebaseConfig = {
+            apiKey: "AIzaSyBW9xfUVJzLAJKGRaHfgZhvCkLAK2DeSsA",
+            authDomain: "site-cloud-perso.firebaseapp.com",
+            projectId: "site-cloud-perso",
+            storageBucket: "site-cloud-perso.firebasestorage.app",
+            messagingSenderId: "849746449045",
+            appId: "1:849746449045:web:56e8c6e1419df6899bc19c",
+            measurementId: "G-TY1X01S31D"
         };
+        
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Variables Globales
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'poker-app-v1';
+        /* Variables globales du jeu */
         let currentUser = null;
         let gameId = new URLSearchParams(window.location.search).get('game');
-        let isHost = false; 
-        
-        // Structure de chemin Firebase stricte selon les règles
-        const getGameDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'games', gameId);
-
-        // Constantes du jeu
-        const INITIAL_CHIPS = 1000;
-        const SMALL_BLIND = 10;
-        const BIG_BLIND = 20;
-
+        let unsubscribe = null;
+        let isHost = false;
+        let myPlayerIndex = -1;
         let gameState = null;
-        let myPlayerId = null;
 
-        // Elements DOM
-        const ui = {
-            status: document.getElementById('connection-status'),
-            mainMenu: document.getElementById('main-menu-screen'),
-            createTableBtn: document.getElementById('create-table-btn'),
-            joinIdInput: document.getElementById('join-id-input'),
-            joinTableMenuBtn: document.getElementById('join-table-menu-btn'),
-            lobbyRoomId: document.getElementById('lobby-room-id'),
-            backToMenuBtn: document.getElementById('back-to-menu-btn'),
-            lobby: document.getElementById('lobby-screen'),
-            gameArea: document.getElementById('game-area'),
-            controls: document.getElementById('player-controls'),
-            inviteBtn: document.getElementById('invite-btn'),
-            joinBtn: document.getElementById('join-game-btn'),
-            startBtn: document.getElementById('start-game-btn'),
-            nameInput: document.getElementById('player-name-input'),
-            playersContainer: document.getElementById('players-container'),
-            communityCards: document.getElementById('community-cards'),
-            mainPot: document.getElementById('main-pot'),
-            myChips: document.getElementById('my-chips'),
-            gameIdDisplay: document.getElementById('game-id-display'),
-            phaseDisplay: document.getElementById('game-phase-display'),
-            // Boutons d'action
-            btnFold: document.getElementById('btn-fold'),
-            btnCall: document.getElementById('btn-call'),
-            btnRaise: document.getElementById('btn-raise'),
-            callAmount: document.getElementById('call-amount'),
-            raiseInput: document.getElementById('raise-input'),
-            notifContainer: document.getElementById('notification-container')
-        };
-
-        if (gameId) {
-            ui.gameIdDisplay.textContent = `#${gameId}`;
-        }
-
-        // Utilitaire: Notifications
-        function showNotification(msg) {
-            const notif = document.createElement('div');
-            notif.className = 'notification';
-            notif.textContent = msg;
-            ui.notifContainer.appendChild(notif);
-            setTimeout(() => {
-                notif.style.opacity = '0';
-                setTimeout(() => notif.remove(), 300);
-            }, 3000);
-        }
-
-        // Utilitaire: Copier Lien
-        ui.inviteBtn.addEventListener('click', () => {
-            let url = window.location.href;
-            if (!url.includes('game=')) {
-                url = url.split('?')[0] + '?game=' + gameId;
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                if (gameId) {
+                    // Si un gameId est dans l'URL, on propose de le rejoindre automatiquement
+                    document.getElementById('join-game-id').value = gameId;
+                }
+            } else {
+                signInAnonymously(auth).catch((error) => console.error("Erreur Auth:", error));
             }
-            const textarea = document.createElement('textarea');
-            textarea.value = url;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showNotification("Lien d'invitation copié !");
-            } catch (err) {
-                console.error('Erreur de copie', err);
-            }
-            document.body.removeChild(textarea);
         });
 
-        // Navigation Menu Principal / Lobby
-        if (gameId) {
-            showLobbyScreen(gameId);
-        } else {
-            ui.mainMenu.classList.remove('hidden');
-            ui.lobby.classList.add('hidden');
-        }
-
-        function showLobbyScreen(id) {
-            gameId = id.toUpperCase();
-            ui.lobbyRoomId.textContent = gameId;
-            ui.gameIdDisplay.textContent = `#${gameId}`;
-            ui.mainMenu.classList.add('hidden');
-            ui.lobby.classList.remove('hidden');
+        function showScreen(screenId) {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('flex');
             
-            try {
-                const url = new URL(window.location);
-                url.searchParams.set('game', gameId);
-                window.history.replaceState({}, '', url);
-            } catch(e) {}
-        }
-
-        ui.createTableBtn.addEventListener('click', async () => {
-            if (!currentUser) {
-                showNotification("Connexion en cours, veuillez patienter...");
-                return;
+            if(screenId === 'game-screen') {
+                document.getElementById('game-screen').classList.remove('hidden');
+                document.getElementById('game-screen').classList.add('flex');
+            } else {
+                document.getElementById('home-screen').classList.remove('hidden');
             }
-            
-            const newId = Math.random().toString(36).substring(2, 9).toUpperCase();
-            const originalGameId = gameId;
-            gameId = newId; 
+        }
+
+        window.createTable = async () => {
+            const nameInput = document.getElementById('player-name').value.trim() || "Hôte";
+            gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
             isHost = true;
             
             try {
-                // Création immédiate du document pour que le lien soit valide tout de suite
-                const gameRef = getGameDocRef();
-                await setDoc(gameRef, {
-                    phase: 'WAITING',
-                    pot: 0,
-                    currentBet: 0,
-                    dealerIndex: 0,
-                    activePlayerIndex: 0,
-                    deck: [],
-                    communityCards: [],
-                    players: [],
-                    hostId: myPlayerId,
-                    lastAction: 'Partie créée'
+                window.history.replaceState({}, '', `?game=${gameId}`);
+            } catch(e) { /* Ignore error in iframe/blob preview */ }
+
+            const initialGameData = {
+                state: 'waiting',
+                pot: 0,
+                currentBet: 0,
+                currentTurnIndex: 0,
+                phase: 'preflop', // preflop, flop, turn, river, showdown
+                communityCards: [],
+                deck: [],
+                players: [{
+                    uid: currentUser.uid,
+                    name: nameInput,
+                    chips: 1000,
+                    cards: [],
+                    bet: 0,
+                    folded: false,
+                    isHost: true
+                }]
+            };
+
+            await setDoc(doc(db, "games", gameId), initialGameData);
+            listenToGame();
+            showScreen('game-screen');
+        };
+
+        window.joinTable = async () => {
+            const nameInput = document.getElementById('player-name').value.trim() || "Joueur";
+            let inputId = document.getElementById('join-game-id').value.trim().toUpperCase();
+            if (!inputId) return alert("Veuillez entrer un ID de partie.");
+            
+            gameId = inputId;
+            const gameRef = doc(db, "games", gameId);
+            const gameSnap = await getDoc(gameRef);
+
+            if (!gameSnap.exists()) {
+                return alert("Cette partie n'existe pas.");
+            }
+
+            let data = gameSnap.data();
+            
+            // Vérifier si le joueur est déjà dans la partie
+            const existingPlayer = data.players.find(p => p.uid === currentUser.uid);
+            
+            if (!existingPlayer) {
+                if (data.players.length >= 5) return alert("La table est pleine (5 joueurs max).");
+                if (data.state !== 'waiting') return alert("La partie a déjà commencé.");
+
+                data.players.push({
+                    uid: currentUser.uid,
+                    name: nameInput,
+                    chips: 1000,
+                    cards: [],
+                    bet: 0,
+                    folded: false,
+                    isHost: false
                 });
-                showLobbyScreen(newId);
-            } catch (err) {
-                console.error(err);
-                showNotification("Erreur lors de la création de la partie.");
-                gameId = originalGameId;
-            }
-        });
-
-        ui.joinTableMenuBtn.addEventListener('click', () => {
-            const id = ui.joinIdInput.value.trim();
-            if (id) {
-                isHost = false;
-                showLobbyScreen(id);
+                await updateDoc(gameRef, { players: data.players });
             } else {
-                showNotification("Veuillez entrer un ID de table valide");
+                isHost = existingPlayer.isHost;
             }
-        });
 
-        ui.backToMenuBtn.addEventListener('click', () => {
-            gameId = null;
-            isHost = false;
-            ui.lobby.classList.add('hidden');
-            ui.mainMenu.classList.remove('hidden');
-            document.getElementById('lobby-message').textContent = "";
             try {
-                const url = new URL(window.location);
-                url.searchParams.delete('game');
-                window.history.replaceState({}, '', url);
-            } catch(e) {}
-        });
+                window.history.replaceState({}, '', `?game=${gameId}`);
+            } catch(e) { }
 
-        const suits = ['♠', '♥', '♦', '♣'];
-        const values = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-        
+            listenToGame();
+            showScreen('game-screen');
+        };
+
+        window.copyInviteLink = () => {
+            let link = window.location.href;
+            if (!link.includes('?game=')) {
+                link = window.location.origin + window.location.pathname + `?game=${gameId}`;
+            }
+            try {
+                navigator.clipboard.writeText(link).then(() => {
+                    const btn = document.querySelector('button[onclick="copyInviteLink()"]');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ Copié !';
+                    setTimeout(() => btn.innerHTML = originalText, 2000);
+                });
+            } catch (err) {
+                // Secours si clipboard API bloque
+                const tempInput = document.createElement("input");
+                tempInput.value = link;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+                alert("Lien copié: " + link);
+            }
+        };
+
+        function listenToGame() {
+            if (unsubscribe) unsubscribe();
+            document.getElementById('display-game-id').innerText = gameId;
+
+            unsubscribe = onSnapshot(doc(db, "games", gameId), (docSnap) => {
+                if (docSnap.exists()) {
+                    gameState = docSnap.data();
+                    myPlayerIndex = gameState.players.findIndex(p => p.uid === currentUser.uid);
+                    updateUI();
+                }
+            });
+        }
+
+        function updateUI() {
+            if (!gameState) return;
+
+            // Statut et boutons de l'hôte
+            const statusEl = document.getElementById('game-status');
+            const hostControls = document.getElementById('host-controls');
+            
+            if (gameState.state === 'waiting') {
+                statusEl.innerText = `En attente... (${gameState.players.length}/5 joueurs)`;
+                if (isHost && gameState.players.length > 1) hostControls.classList.remove('hidden');
+                else hostControls.classList.add('hidden');
+            } else if (gameState.state === 'playing') {
+                statusEl.innerText = `Phase : ${gameState.phase.toUpperCase()}`;
+                hostControls.classList.add('hidden');
+            } else if (gameState.state === 'showdown') {
+                statusEl.innerText = `Abattage ! Fin de la manche.`;
+                if (isHost) hostControls.classList.remove('hidden');
+            }
+
+            // Pot
+            document.getElementById('pot-display').innerText = `Pot: ${gameState.pot} $`;
+
+            // Mes jetons
+            if (myPlayerIndex !== -1) {
+                document.getElementById('my-chips').innerText = `${gameState.players[myPlayerIndex].chips} $`;
+            }
+
+            // Cartes Communes
+            const commContainer = document.getElementById('community-cards');
+            commContainer.innerHTML = '';
+            if (gameState.state !== 'waiting') {
+                let cardsToShow = 0;
+                if (gameState.phase === 'flop') cardsToShow = 3;
+                if (gameState.phase === 'turn') cardsToShow = 4;
+                if (gameState.phase === 'river' || gameState.phase === 'showdown') cardsToShow = 5;
+
+                for (let i = 0; i < 5; i++) {
+                    if (i < cardsToShow && gameState.communityCards[i]) {
+                        commContainer.innerHTML += renderCard(gameState.communityCards[i]);
+                    } else if (gameState.state !== 'waiting') {
+                        // Carte face cachée ou vide si pas encore distribuée
+                        commContainer.innerHTML += `<div class="card card-hidden"></div>`;
+                    }
+                }
+            }
+
+            // Joueurs autour de la table
+            const playersContainer = document.getElementById('players-container');
+            playersContainer.innerHTML = '';
+            gameState.players.forEach((player, index) => {
+                const isMe = player.uid === currentUser.uid;
+                const isMyTurn = (gameState.state === 'playing' && gameState.currentTurnIndex === index);
+                
+                let cardsHtml = '';
+                if (player.cards && player.cards.length === 2) {
+                    if (player.folded) {
+                        cardsHtml = `<div class="text-xs bg-red-600 text-white px-2 py-1 rounded">Couché</div>`;
+                    } else if (isMe || gameState.state === 'showdown') {
+                        // Montrer les cartes
+                        cardsHtml = `
+                            <div class="flex -space-x-4 pointer-events-auto">
+                                ${renderCard(player.cards[0])}
+                                ${renderCard(player.cards[1])}
+                            </div>
+                        `;
+                    } else {
+                        // Cartes cachées adversaires
+                        cardsHtml = `
+                            <div class="flex -space-x-4">
+                                <div class="card card-hidden scale-75"></div>
+                                <div class="card card-hidden scale-75"></div>
+                            </div>
+                        `;
+                    }
+                }
+
+                const seatClass = `seat-${index}`;
+                playersContainer.innerHTML += `
+                    <div class="player-seat ${seatClass} bg-gray-800/80 p-2 rounded-xl backdrop-blur-sm ${isMyTurn ? 'active-turn' : ''}">
+                        <div class="text-white font-bold mb-1">${player.name} ${isMe ? '(Vous)' : ''}</div>
+                        ${cardsHtml}
+                        <div class="mt-1 text-yellow-400 text-sm font-bold">${player.chips} $</div>
+                        ${player.bet > 0 ? `<div class="absolute -top-6 bg-blue-600 text-white text-xs px-2 py-1 rounded-full border border-blue-400">Mise: ${player.bet}$</div>` : ''}
+                    </div>
+                `;
+            });
+
+            // Boutons d'action
+            const actionButtons = document.getElementById('action-buttons');
+            if (gameState.state === 'playing' && gameState.currentTurnIndex === myPlayerIndex && !gameState.players[myPlayerIndex].folded) {
+                actionButtons.classList.remove('hidden');
+            } else {
+                actionButtons.classList.add('hidden');
+            }
+        }
+
+        function renderCard(card) {
+            if (!card) return '';
+            const colorClass = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+            return `<div class="card ${colorClass} bg-white">${card.value}${card.suit}</div>`;
+        }
+
         function createDeck() {
+            const suits = ['♥', '♦', '♣', '♠'];
+            const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
             let deck = [];
             for (let s of suits) {
                 for (let v of values) {
                     deck.push({ suit: s, value: v });
                 }
             }
-            // Fisher-Yates shuffle
+            // Shuffle (Fisher-Yates)
             for (let i = deck.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -357,516 +425,128 @@
             return deck;
         }
 
-        // Rendu visuel d'une carte
-        function renderCard(cardData, isHidden = false) {
-            if (isHidden) {
-                return `<div class="card card-back"></div>`;
-            }
-            if (!cardData) return '';
-            const isRed = cardData.suit === '♥' || cardData.suit === '♦';
-            const colorClass = isRed ? 'red' : '';
-            return `
-                <div class="card ${colorClass}">
-                    <div>${cardData.value} ${cardData.suit}</div>
-                    <div class="suit-center">${cardData.suit}</div>
-                    <div style="text-align: right; transform: rotate(180deg);">${cardData.value} ${cardData.suit}</div>
-                </div>
-            `;
-        }
-
-        async function initAuth() {
-            ui.status.textContent = "Authentification...";
-            try {
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-                ui.status.textContent = "Erreur Auth";
-            }
-        }
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                myPlayerId = user.uid;
-                ui.status.textContent = "Connecté";
-                ui.status.classList.replace('text-yellow-400', 'text-green-400');
-            }
-        });
-
-        ui.joinBtn.addEventListener('click', async () => {
-            const name = ui.nameInput.value.trim() || "Joueur " + Math.floor(Math.random()*1000);
-            if (!currentUser) {
-                document.getElementById('lobby-message').textContent = "Veuillez patienter, connexion en cours...";
-                return;
-            }
-
-            ui.joinBtn.disabled = true;
-            ui.joinBtn.textContent = "Connexion...";
-            document.getElementById('lobby-message').textContent = "";
-
-            try {
-                const gameRef = getGameDocRef();
-                
-                // Utilisation de runTransaction pour éviter les conflits d'ajout simultané
-                await runTransaction(db, async (transaction) => {
-                    const doc = await transaction.get(gameRef);
-                    if (!doc.exists()) throw "La partie n'existe pas ou l'ID est invalide.";
-                    
-                    const data = doc.data();
-                    let players = data.players || [];
-                    
-                    // Vérifier si déjà dans la partie
-                    if (players.find(p => p.id === myPlayerId)) {
-                        return; // Déjà là
-                    }
-
-                    if (players.length >= 5) {
-                        throw "La table est pleine (Max 5 joueurs).";
-                    }
-
-                    players.push({
-                        id: myPlayerId,
-                        name: name,
-                        chips: INITIAL_CHIPS,
-                        bet: 0,
-                        folded: false,
-                        cards: []
-                    });
-
-                    transaction.update(gameRef, { players: players });
-                });
-
-                listenToGame();
-
-                ui.lobby.classList.add('hidden');
-                ui.mainMenu.classList.add('hidden');
-                ui.gameArea.style.display = 'flex';
-                ui.inviteBtn.classList.remove('hidden');
-                
-            } catch (error) {
-                console.error("Erreur join:", error);
-                document.getElementById('lobby-message').textContent = error;
-                ui.joinBtn.disabled = false;
-                ui.joinBtn.textContent = "Entrer dans la partie";
-            }
-        });
-
-        function listenToGame() {
-            onSnapshot(getGameDocRef(), (docSnap) => {
-                if (!docSnap.exists()) return;
-                gameState = docSnap.data();
-                renderGame();
-                updateControls();
-            }, (error) => {
-                console.error("Erreur Snapshot:", error);
-            });
-        }
-
-        function renderGame() {
-            if (!gameState) return;
-
-            // Masquer le lobby si on est déjà dans les joueurs
-            const me = gameState.players.find(p => p.id === myPlayerId);
-            if (me) {
-                ui.lobby.style.display = 'none';
-                ui.gameArea.style.display = 'flex';
-                ui.controls.classList.remove('hidden');
-                ui.inviteBtn.classList.remove('hidden');
-                ui.myChips.textContent = `${me.chips} $`;
-            }
-
-            // Mettre à jour les infos communes
-            ui.mainPot.textContent = gameState.pot;
+        window.startGame = async () => {
+            if (!isHost) return;
+            const deck = createDeck();
+            const communityCards = deck.splice(0, 5); // 5 cartes de côté pour le board
             
-            let phaseText = gameState.phase;
-            if(phaseText === 'WAITING') phaseText = 'En Attente de Joueurs';
-            ui.phaseDisplay.textContent = phaseText;
-
-            // Rendu des cartes communes
-            ui.communityCards.innerHTML = '';
-            gameState.communityCards.forEach(card => {
-                ui.communityCards.innerHTML += renderCard(card);
-            });
-
-            // Bouton Start (Seulement pour l'hôte en mode WAITING avec au moins 2 joueurs)
-            if (gameState.hostId === myPlayerId && gameState.phase === 'WAITING' && gameState.players.length >= 2) {
-                ui.startBtn.classList.remove('hidden');
-            } else {
-                ui.startBtn.classList.add('hidden');
-            }
-
-            // Rendu des joueurs
-            renderPlayers();
-        }
-
-        function renderPlayers() {
-            ui.playersContainer.innerHTML = '';
-            
-            // Calculer les positions relatives. Pour le joueur actuel, il doit être en bas (seat-0)
-            const myIndex = gameState.players.findIndex(p => p.id === myPlayerId);
-            const totalPlayers = gameState.players.length;
-            
-            gameState.players.forEach((player, originalIndex) => {
-                // Mapping des sièges (0=Moi, puis on tourne dans le sens horaire)
-                let seatIndex = 0;
-                if (myIndex !== -1) {
-                    seatIndex = (originalIndex - myIndex + totalPlayers) % totalPlayers;
-                } else {
-                    seatIndex = originalIndex; // Spectateur
-                }
-                
-                // On a 5 sièges max définis dans le CSS
-                const seatClass = `seat-${seatIndex}`;
-                
-                const isActive = gameState.phase !== 'WAITING' && gameState.activePlayerIndex === originalIndex && !player.folded;
-                const isDealer = gameState.dealerIndex === originalIndex;
-                
-                // Affichage des cartes
-                let cardsHTML = '';
-                if (player.cards && player.cards.length === 2) {
-                    if (player.folded) {
-                         cardsHTML = '<div class="text-xs text-red-400 bg-black/50 px-2 rounded">Couché</div>';
-                    } else if (player.id === myPlayerId || gameState.phase === 'SHOWDOWN') {
-                        // Montrer les cartes à moi-même ou à tout le monde au showdown
-                        cardsHTML = `
-                            <div class="flex gap-1 transform scale-75 origin-top">
-                                ${renderCard(player.cards[0])}
-                                ${renderCard(player.cards[1])}
-                            </div>
-                        `;
-                    } else {
-                        // Cacher les cartes des autres en jeu
-                        cardsHTML = `
-                            <div class="flex gap-1 transform scale-75 origin-top">
-                                ${renderCard(null, true)}
-                                ${renderCard(null, true)}
-                            </div>
-                        `;
-                    }
-                }
-
-                // Info bulle de mise
-                const betDisplay = player.bet > 0 
-                    ? `<div class="absolute -top-10 bg-black/70 text-yellow-400 px-3 py-1 rounded-full text-sm font-bold shadow flex items-center gap-1 border border-yellow-600/50">
-                         <div class="w-3 h-3 rounded-full bg-yellow-500"></div> ${player.bet}$
-                       </div>` 
-                    : '';
-
-                const dealerBtn = isDealer ? `<div class="absolute -left-6 bottom-0 w-6 h-6 bg-white text-black rounded-full flex items-center justify-center text-xs font-bold shadow-md border-2 border-gray-300">D</div>` : '';
-
-                const el = document.createElement('div');
-                el.className = `player-seat ${seatClass} pointer-events-auto`;
-                el.innerHTML = `
-                    ${betDisplay}
-                    ${cardsHTML}
-                    <div class="bg-gray-800 border-2 ${isActive ? 'border-yellow-400 active-player-glow' : 'border-gray-600'} rounded-lg px-4 py-2 mt-2 text-center shadow-lg relative min-w-[120px]">
-                        ${dealerBtn}
-                        <div class="font-bold text-white truncate max-w-[100px]">${player.name}</div>
-                        <div class="text-yellow-400 text-sm">${player.chips} $</div>
-                    </div>
-                `;
-                ui.playersContainer.appendChild(el);
-            });
-        }
-
-        function updateControls() {
-            if (!gameState || gameState.phase === 'WAITING' || gameState.phase === 'SHOWDOWN') {
-                disableAllButtons();
-                return;
-            }
-
-            const myIndex = gameState.players.findIndex(p => p.id === myPlayerId);
-            if (myIndex === -1) {
-                disableAllButtons(); // Spectateur
-                return;
-            }
-
-            const me = gameState.players[myIndex];
-            const isMyTurn = gameState.activePlayerIndex === myIndex && !me.folded;
-
-            if (!isMyTurn) {
-                disableAllButtons();
-                return;
-            }
-
-            // C'est mon tour
-            ui.btnFold.disabled = false;
-            
-            const callAmount = gameState.currentBet - me.bet;
-            ui.callAmount.textContent = callAmount > 0 ? callAmount : 'Check';
-            
-            if (me.chips >= callAmount) {
-                ui.btnCall.disabled = false;
-            } else {
-                ui.btnCall.disabled = true; // Ne peut pas suivre (devrait être All-in, simplifions)
-                // Note: Dans un vrai jeu, ce serait un All-in
-            }
-
-            const minRaise = gameState.currentBet + BIG_BLIND; // Relance minimale simple
-            ui.raiseInput.min = minRaise;
-            ui.raiseInput.value = minRaise;
-
-            if (me.chips > callAmount) {
-                ui.btnRaise.disabled = false;
-                ui.raiseInput.disabled = false;
-            } else {
-                ui.btnRaise.disabled = true;
-                ui.raiseInput.disabled = true;
-            }
-        }
-
-        function disableAllButtons() {
-            ui.btnFold.disabled = true;
-            ui.btnCall.disabled = true;
-            ui.btnRaise.disabled = true;
-            ui.raiseInput.disabled = true;
-            ui.callAmount.textContent = "0";
-        }
-
-        ui.btnFold.addEventListener('click', () => submitAction('FOLD'));
-        ui.btnCall.addEventListener('click', () => submitAction('CALL'));
-        ui.btnRaise.addEventListener('click', () => {
-            const amount = parseInt(ui.raiseInput.value);
-            if (amount && !isNaN(amount)) submitAction('RAISE', amount);
-        });
-
-        async function submitAction(actionType, amount = 0) {
-            if (!currentUser || !gameState) return;
-            disableAllButtons(); // Prévenir le double clic
-
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const gameRef = getGameDocRef();
-                    const gameDoc = await transaction.get(gameRef);
-                    if (!gameDoc.exists()) throw "Jeu introuvable";
-                    
-                    let data = gameDoc.data();
-                    const myIndex = data.players.findIndex(p => p.id === myPlayerId);
-                    
-                    // Vérifications de sécurité de base
-                    if (data.activePlayerIndex !== myIndex) throw "Ce n'est pas votre tour";
-                    
-                    let player = data.players[myIndex];
-                    let logAction = "";
-
-                    if (actionType === 'FOLD') {
-                        player.folded = true;
-                        logAction = `${player.name} se couche.`;
-                    } else if (actionType === 'CALL') {
-                        const callDiff = data.currentBet - player.bet;
-                        const actualCall = Math.min(callDiff, player.chips); // All-in partiel si pas assez
-                        player.chips -= actualCall;
-                        player.bet += actualCall;
-                        data.pot += actualCall;
-                        logAction = callDiff === 0 ? `${player.name} check.` : `${player.name} suit (${actualCall}).`;
-                    } else if (actionType === 'RAISE') {
-                        // Montant total de la mise finale demandée par le raise
-                        if (amount <= data.currentBet || amount > player.chips + player.bet) throw "Montant invalide";
-                        const addAmount = amount - player.bet;
-                        player.chips -= addAmount;
-                        player.bet += addAmount;
-                        data.pot += addAmount;
-                        data.currentBet = amount;
-                        logAction = `${player.name} relance à ${amount}.`;
-                    }
-
-                    // Déterminer le prochain état (avancer le tour)
-                    data.lastAction = logAction;
-                    const nextStateData = calculateNextGameState(data);
-                    
-                    transaction.update(gameRef, nextStateData);
-                });
-            } catch (err) {
-                console.error("Erreur action:", err);
-                showNotification("Erreur : " + err);
-                updateControls(); // Réactiver si échec
-            }
-        }
-
-        // Cette fonction tourne lors d'une transaction Firebase pour déterminer la suite
-        function calculateNextGameState(data) {
-            let activeCount = data.players.filter(p => !p.folded).length;
-            
-            // 1. Si un seul joueur reste -> Il gagne
-            if (activeCount === 1) {
-                const winner = data.players.find(p => !p.folded);
-                winner.chips += data.pot;
-                data.lastAction = `${winner.name} gagne ${data.pot} (les autres couchés).`;
-                return resetRound(data);
-            }
-
-            // 2. Vérifier si le tour de mise est terminé
-            // Le tour est fini si tous les joueurs non-couchés ont misé le même montant (currentBet)
-            // et que tout le monde a eu l'opportunité de jouer.
-            // (Simplification : on suppose que si bet == currentBet, on a fini, sauf si c'est le début du tour)
-            
-            let roundFinished = true;
-            for (let p of data.players) {
-                if (!p.folded && p.bet < data.currentBet) {
-                    roundFinished = false;
-                    break;
-                }
-            }
-            
-            // Trouver le prochain joueur actif
-            let nextActive = (data.activePlayerIndex + 1) % data.players.length;
-            while (data.players[nextActive].folded) {
-                nextActive = (nextActive + 1) % data.players.length;
-            }
-
-            if (!roundFinished) {
-                // Le tour continue
-                data.activePlayerIndex = nextActive;
-                return data;
-            }
-
-            // 3. Le tour est fini, on passe à la phase suivante
-            // Réinitialiser les mises de table pour la phase suivante
-            data.players.forEach(p => { p.bet = 0; });
-            data.currentBet = 0;
-            
-            // Le premier à parler est celui après le dealer
-            data.activePlayerIndex = getNextActivePlayer(data.dealerIndex, data.players);
-
-            if (data.phase === 'PREFLOP') {
-                data.phase = 'FLOP';
-                data.communityCards = [data.deck.pop(), data.deck.pop(), data.deck.pop()];
-            } else if (data.phase === 'FLOP') {
-                data.phase = 'TURN';
-                data.communityCards.push(data.deck.pop());
-            } else if (data.phase === 'TURN') {
-                data.phase = 'RIVER';
-                data.communityCards.push(data.deck.pop());
-            } else if (data.phase === 'RIVER') {
-                // SHOWDOWN
-                data.phase = 'SHOWDOWN';
-                data = evaluateShowdown(data);
-            }
-
-            return data;
-        }
-
-        function getNextActivePlayer(startIndex, players) {
-            let next = (startIndex + 1) % players.length;
-            while (players[next].folded) {
-                next = (next + 1) % players.length;
-            }
-            return next;
-        }
-
-        ui.startBtn.addEventListener('click', async () => {
-            if (!currentUser) return;
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const gameRef = getGameDocRef();
-                    const docSnap = await transaction.get(gameRef);
-                    let data = docSnap.data();
-                    
-                    if (data.players.length < 2) throw "Pas assez de joueurs";
-                    
-                    data = resetRound(data, true); // true = init first dealer
-                    transaction.update(gameRef, data);
-                });
-            } catch (err) {
-                showNotification(err);
-            }
-        });
-
-        function resetRound(data, isFirstGame = false) {
-            data.deck = createDeck();
-            data.communityCards = [];
-            data.pot = 0;
-            data.currentBet = BIG_BLIND;
-            data.phase = 'PREFLOP';
-
-            // Gérer le Dealer
-            if (isFirstGame) {
-                data.dealerIndex = 0;
-            } else {
-                data.dealerIndex = (data.dealerIndex + 1) % data.players.length;
-                // Exclure les joueurs sans jetons (simplification: on devrait les virer)
-            }
-
-            // Blinds
-            const sbIndex = (data.dealerIndex + 1) % data.players.length;
-            const bbIndex = (data.dealerIndex + 2) % data.players.length;
-
-            data.players.forEach((p, index) => {
-                p.folded = false;
+            let players = [...gameState.players];
+            // Reset des joueurs et distribution
+            players.forEach(p => {
+                p.cards = [deck.pop(), deck.pop()];
                 p.bet = 0;
-                p.cards = [data.deck.pop(), data.deck.pop()];
-                
-                if (index === sbIndex) {
-                    let bet = Math.min(SMALL_BLIND, p.chips);
-                    p.chips -= bet; p.bet = bet; data.pot += bet;
-                } else if (index === bbIndex) {
-                    let bet = Math.min(BIG_BLIND, p.chips);
-                    p.chips -= bet; p.bet = bet; data.pot += bet;
-                }
+                p.folded = false;
             });
 
-            // Le premier à parler pré-flop est Under The Gun (après BB)
-            data.activePlayerIndex = (bbIndex + 1) % data.players.length;
-            
-            // Attendre un peu avant de redémarrer si on vient d'un showdown
-            return data;
-        }
-
-        // Pour garder le code compact, ceci est un évaluateur très basique.
-        // En prod, on utiliserait une librairie d'évaluation de poker 7 cartes.
-        // Ici: on donne le pot au hasard parmi les non-couchés (Placeholder pour la complexité algorithmique d'un vrai évaluateur dans un seul fichier).
-        // EDIT: Faisons un évaluateur basique par valeur de la carte la plus haute pour que ce soit jouable.
-        
-        function evaluateShowdown(data) {
-            const activePlayers = data.players.filter(p => !p.folded);
-            
-            // Simplification extrême de l'évaluation : 
-            // On convertit les valeurs (2=2... A=14)
-            const getVal = (v) => {
-                if(v==='T') return 10; if(v==='J') return 11; if(v==='Q') return 12; 
-                if(v==='K') return 13; if(v==='A') return 14; return parseInt(v);
+            const newGameState = {
+                state: 'playing',
+                phase: 'preflop',
+                pot: 0,
+                currentBet: 0,
+                currentTurnIndex: 0,
+                communityCards: communityCards,
+                deck: deck,
+                players: players
             };
 
-            // On trouve le score max d'un joueur basé uniquement sur sa meilleure carte privée + somme
-            // (Ceci N'EST PAS du vrai poker, mais permet au jeu de se terminer et de distribuer le pot sans faire 500 lignes de combinaisons)
-            let maxScore = -1;
-            let winners = [];
+            await updateDoc(doc(db, "games", gameId), newGameState);
+        };
 
-            activePlayers.forEach(p => {
-                let score = Math.max(getVal(p.cards[0].value), getVal(p.cards[1].value)) * 100 + getVal(p.cards[0].value) + getVal(p.cards[1].value);
-                if (score > maxScore) {
-                    maxScore = score;
-                    winners = [p];
-                } else if (score === maxScore) {
-                    winners.push(p);
+        window.playAction = async (action) => {
+            if (gameState.currentTurnIndex !== myPlayerIndex) return; // Pas mon tour
+
+            let gameRef = doc(db, "games", gameId);
+            let players = [...gameState.players];
+            let me = players[myPlayerIndex];
+            let pot = gameState.pot;
+            let currentBet = gameState.currentBet;
+
+            if (action === 'fold') {
+                me.folded = true;
+            } 
+            else if (action === 'call') {
+                const amountToCall = currentBet - me.bet;
+                if (me.chips >= amountToCall) {
+                    me.chips -= amountToCall;
+                    me.bet += amountToCall;
+                    pot += amountToCall;
+                } else {
+                    // All-in partiel simplifié
+                    pot += me.chips;
+                    me.bet += me.chips;
+                    me.chips = 0;
                 }
-            });
+            } 
+            else if (action === 'raise') {
+                const raiseAmount = 50; // Relance fixe simplifiée pour le jeu HTML
+                const totalToPut = (currentBet - me.bet) + raiseAmount;
+                if (me.chips >= totalToPut) {
+                    me.chips -= totalToPut;
+                    me.bet += totalToPut;
+                    pot += totalToPut;
+                    currentBet += raiseAmount;
+                }
+            }
 
-            // Split pot
-            const winAmount = Math.floor(data.pot / winners.length);
-            winners.forEach(w => {
-                const player = data.players.find(p => p.id === w.id);
-                player.chips += winAmount;
-            });
+            // Calcul du prochain tour
+            let nextIndex = (myPlayerIndex + 1) % players.length;
+            let activePlayersCount = players.filter(p => !p.folded).length;
 
-            data.lastAction = `Showdown! ${winners.map(w=>w.name).join(', ')} gagne(nt) avec la carte haute.`;
-            data.pot = 0;
+            if (activePlayersCount <= 1) {
+                // Tout le monde a foldé sauf un : Victoire immédiate
+                await updateDoc(gameRef, { state: 'showdown', pot: pot, players: players, currentBet: currentBet });
+                return;
+            }
+
+            // Vérifier si le tour de mise est terminé (simplifié : on avance la phase si on fait le tour complet)
+            // Dans un vrai poker, il faut vérifier que tous les non-couchés ont misé la même somme.
+            // Ici, pour garder le code léger, on passe à la phase suivante quand on revient au donneur.
+            let nextPhase = gameState.phase;
+            let newState = gameState.state;
+
+            // Trouve le prochain joueur non couché
+            while (players[nextIndex].folded) {
+                nextIndex = (nextIndex + 1) % players.length;
+            }
+
+            // Si le prochain à parler a déjà misé la bonne somme et qu'on a fait un tour complet, on avance
+            let allCalled = players.every(p => p.folded || p.bet === currentBet);
             
-            // Planifier la prochaine manche via un flag ou la laisser manuelle pour l'hôte ?
-            // L'idéal est un délai. Vu que c'est géré par l'état, on force un état WAITING_NEXT.
-            // Pour simplifier ce fichier, on remet direct WAITING et l'hôte doit relancer.
-            data.phase = 'WAITING';
-            
-            return data;
-        }
+            if (allCalled && currentBet > 0 || (nextIndex === 0 && action === 'call')) {
+                // On avance la phase
+                if (gameState.phase === 'preflop') nextPhase = 'flop';
+                else if (gameState.phase === 'flop') nextPhase = 'turn';
+                else if (gameState.phase === 'turn') nextPhase = 'river';
+                else if (gameState.phase === 'river') {
+                    nextPhase = 'showdown';
+                    newState = 'showdown';
+                }
+                
+                // Reset les mises du tour si on change de phase
+                if (nextPhase !== gameState.phase) {
+                    players.forEach(p => p.bet = 0);
+                    currentBet = 0;
+                    nextIndex = 0; // Le tour repart au joueur 0
+                    while (players[nextIndex].folded) { nextIndex = (nextIndex + 1) % players.length; }
+                }
+            }
 
-        // Lancement
-        initAuth();
+            // Si on arrive au showdown final
+            if (newState === 'showdown') {
+                // Distribution simplifiée du pot au premier joueur non couché (Dans un vrai jeu, appel à l'évaluateur de main)
+                let winner = players.find(p => !p.folded);
+                if (winner) winner.chips += pot;
+            }
 
+            await updateDoc(gameRef, {
+                players: players,
+                pot: pot,
+                currentBet: currentBet,
+                currentTurnIndex: nextIndex,
+                phase: nextPhase,
+                state: newState
+            });
+        };
     </script>
 </body>
 </html>
