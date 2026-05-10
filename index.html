@@ -507,7 +507,11 @@
             // 2. GESTION DU DÉPLACEMENT
             if ( controls.isLocked === true ) {
                 // Calcul du delta de temps en secondes
-                const delta = ( time - prevTime ) / 1000;
+                let delta = ( time - prevTime ) / 1000;
+
+                // CORRECTION DU BUG DE TÉLÉPORTATION :
+                // Limiter le delta pour éviter les bonds de géant si le PC lague ou si on change d'onglet
+                if ( delta > 0.1 ) delta = 0.1;
 
                 // Friction / ralentissement
                 velocity.x -= velocity.x * 10.0 * delta;
