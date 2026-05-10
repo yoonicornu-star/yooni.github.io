@@ -327,6 +327,9 @@
             const matMuseum = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); 
             const matConcrete = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
+            // Plancher de secours invisible en sous-sol (empêche de tomber à l'infini en cas de bug)
+            createFloor(0, -2, 0, 300, 300, new THREE.MeshBasicMaterial({visible: false}));
+
             // --- REZ-DE-CHAUSSÉE (Y = 0) ---
             
             // Couloir central (De Z=-50 à Z=50)
@@ -382,10 +385,11 @@
                 stepMesh.position.set(sX, sY + 1, sZ);
                 scene.add(stepMesh);
                 
-                // Ajout logique au tableau des sols pour pouvoir marcher dessus
+                // CORRECTION : On élargit la zone de sol pour que les marches se chevauchent 
+                // Ça empêche le personnage de "tomber" entre deux marches.
                 floors.push({
                     minX: sX - 5, maxX: sX + 5,
-                    minZ: sZ - 0.75, maxZ: sZ + 0.75,
+                    minZ: sZ - 1.5, maxZ: sZ + 1.5,
                     y: sY + 2
                 });
             }
@@ -406,8 +410,8 @@
             elevatorPlatform.position.set(-25, 0, 10);
             scene.add(elevatorPlatform);
             
-            // On enregistre les limites de l'ascenseur pour la détection du sol
-            elevatorData = {minX: -29, maxX: -21, minZ: 6, maxZ: 14, y: 0};
+            // CORRECTION : Zone de l'ascenseur élargie pour monter dessus sans accroc
+            elevatorData = {minX: -29.5, maxX: -20.5, minZ: 5.5, maxZ: 14.5, y: 0};
 
             // Le Bouton de l'ascenseur (Objet interactif spécial)
             createInteractableObject(-25, 0, 10, "Activer Ascenseur", "#", 0xe74c3c, true, "elevator");
@@ -415,14 +419,14 @@
 
 
             // --- LE 2ÈME ÉTAGE : GALERIE D'ART (Y = 40) ---
-            // Plancher de la mezzanine (au-dessus d'une partie du couloir et de la salle histoire)
-            createFloor(0, 40, -20, 40, 60, matWood); // Z: de 10 à -50
+            // CORRECTION : Plancher de la mezzanine élargi pour combler le trou avec l'ascenseur
+            createFloor(0, 40, -20, 50, 60, matWood); // X élargi à 50
             
             // Murs du 2ème étage (Hauteur 30)
-            createWall(0, 40, -50, 40, 30, 2, 0xffffff); // Mur du fond 2ème
-            createWall(-20, 40, -20, 2, 30, 60, 0xffffff); // Mur Gauche 2ème
-            createWall(20, 40, -20, 2, 30, 60, 0xffffff); // Mur Droit 2ème
-            createWall(0, 40, 10, 40, 10, 2, 0x88ccff); // Balustrade en verre/bleue (balcon)
+            createWall(0, 40, -50, 50, 30, 2, 0xffffff); // Mur du fond 2ème
+            createWall(-25, 40, -20, 2, 30, 60, 0xffffff); // Mur Gauche 2ème (Poussé pour s'aligner)
+            createWall(25, 40, -20, 2, 30, 60, 0xffffff); // Mur Droit 2ème
+            createWall(0, 40, 10, 50, 10, 2, 0x88ccff); // Balustrade en verre/bleue (balcon)
 
             const lightArt = new THREE.PointLight(0xffffff, 1, 100);
             lightArt.position.set(0, 60, -20); scene.add(lightArt);
@@ -515,18 +519,32 @@
                 controls.moveForward( - velocity.z * delta );
 
                 // A. GESTION DES COLLISIONS AVEC LES MURS (En 3D)
-                const pr = 2; // Rayon du joueur
-                let collideX = false, collideZ = false;
-
+                // CORRECTION : Vous allez maintenant "glisser" contre les murs au lieu d'être bloqué
+                const pr = 2.5; // Rayon du joueur
+                
+                // 1. Test de collision sur l'axe X (Gauche / Droite)
+                let testX = pos.x;
+                let testZ = oldZ;
+                let collideX = false;
                 for(let w of walls) {
-                    // On vérifie si la tête ou les pieds du joueur touchent la hauteur du mur
-                    if (pos.y + 2 > w.minY && pos.y - 10 < w.maxY) {
-                        if (pos.x + pr > w.minX && pos.x - pr < w.maxX && oldZ + pr > w.minZ && oldZ - pr < w.maxZ) collideX = true;
-                        if (oldX + pr > w.minX && oldX - pr < w.maxX && pos.z + pr > w.minZ && pos.z - pr < w.maxZ) collideZ = true;
+                    // pos.y - 9 (au lieu de 10) empêche vos pieds de s'accrocher au mur de l'étage du dessous
+                    if (pos.y + 2 > w.minY && pos.y - 9 < w.maxY) {
+                        if (testX + pr > w.minX && testX - pr < w.maxX && testZ + pr > w.minZ && testZ - pr < w.maxZ) { collideX = true; break; }
                     }
                 }
                 if (collideX) pos.x = oldX;
+
+                // 2. Test de collision sur l'axe Z (Avant / Arrière)
+                testX = pos.x; // Prend la nouvelle position X (corrigée ou non)
+                testZ = pos.z;
+                let collideZ = false;
+                for(let w of walls) {
+                    if (pos.y + 2 > w.minY && pos.y - 9 < w.maxY) {
+                        if (testX + pr > w.minX && testX - pr < w.maxX && testZ + pr > w.minZ && testZ - pr < w.maxZ) { collideZ = true; break; }
+                    }
+                }
                 if (collideZ) pos.z = oldZ;
+
 
                 // B. GESTION DE L'ASCENSEUR (Mécanique mobile)
                 if (elevatorPlatform) {
@@ -565,8 +583,9 @@
 
                 if (pos.y < targetCameraY) {
                     // On doit monter (Escalier ou Ascenseur qui monte)
-                    if (targetCameraY - pos.y < 6) { 
-                        pos.y += (targetCameraY - pos.y) * 0.3; // Lissage très doux pour monter les marches
+                    // CORRECTION : Lissage plus long pour monter les marches en douceur
+                    if (targetCameraY - pos.y < 8) { 
+                        pos.y += (targetCameraY - pos.y) * 0.15; 
                     } else {
                         pos.y = targetCameraY; // Téléportation de secours si bug extrême
                     }
