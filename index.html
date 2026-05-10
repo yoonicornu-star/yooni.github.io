@@ -485,11 +485,8 @@
                 // 1. On déverrouille la souris pour pouvoir utiliser la nouvelle page
                 controls.unlock();
 
-                // 2. Optionnel : Petit effet visuel flash blanc juste avant de partir
-                interactableObject.material.emissive.setHex(0xffffff);
-
-                // 3. REDIRECTION VERS LA NOUVELLE PAGE (Votre dissertation)
-                // On met à jour le lien pour pointer vers votre fichier
+                // 2. REDIRECTION VERS LA NOUVELLE PAGE (Votre dissertation)
+                console.log("Redirection vers bac_dissert_francais.html...");
                 window.location.href = 'bac_dissert_francais.html';
             }
         }
