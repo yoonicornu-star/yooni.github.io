@@ -245,10 +245,11 @@
         const interactionMsg = document.getElementById( 'interaction-message' );
         const notificationMsg = document.getElementById( 'notification' );
 
-        // La "page" interactive
-        let interactableObject;
-        let isNearObject = false;
-        const interactionDistance = 15; // Distance à laquelle l'interaction est possible
+        // Gestion de plusieurs salles et objets interactifs
+        let interactableObjects = []; // Tableau pour stocker tous les objets
+        let closestObject = null;     // Objet le plus proche du joueur
+        const interactionDistance = 15; // Distance d'interaction
+        const walls = []; // Stockage des murs pour les collisions
 
         init();
         animate();
@@ -292,7 +293,7 @@
                 interactionMsg.style.display = 'none'; 
             });
 
-            // 5. ENVIRONNEMENT (Le Home)
+            // 5. ENVIRONNEMENT MULTI-SALLES
             createEnvironment();
 
             // 6. RENDERER
@@ -307,118 +308,134 @@
             document.addEventListener( 'keyup', onKeyUp );
         }
 
-        function createEnvironment() {
-            // -- LE SOL --
-            const floorGeometry = new THREE.PlaneGeometry( 200, 200, 10, 10 );
-            // Création d'un motif simple type damier
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const context = canvas.getContext('2d');
-            context.fillStyle = '#ffffff';
-            context.fillRect(0, 0, 128, 128);
-            context.fillStyle = '#e0e0e0';
-            context.fillRect(0, 0, 64, 64);
-            context.fillRect(64, 64, 64, 64);
-            
-            const floorTexture = new THREE.CanvasTexture(canvas);
-            floorTexture.wrapS = THREE.RepeatWrapping;
-            floorTexture.wrapT = THREE.RepeatWrapping;
-            floorTexture.repeat.set( 50, 50 );
-
-            const floorMaterial = new THREE.MeshLambertMaterial({ map: floorTexture });
-            const floor = new THREE.Mesh( floorGeometry, floorMaterial );
-            floor.rotation.x = - Math.PI / 2; // Coucher le plan pour faire un sol
-            scene.add( floor );
-
-            // -- QUELQUES MURS POUR DÉLIMITER --
-            const wallMaterial = new THREE.MeshLambertMaterial( { color: 0x90a4ae } ); // Gris bleu
-            
-            // Mur Nord
-            const wallN = new THREE.Mesh( new THREE.BoxGeometry( 100, 30, 2 ), wallMaterial );
-            wallN.position.set( 0, 15, -50 );
-            scene.add( wallN );
-            
-            // Mur Sud
-            const wallS = new THREE.Mesh( new THREE.BoxGeometry( 100, 30, 2 ), wallMaterial );
-            wallS.position.set( 0, 15, 50 );
-            scene.add( wallS );
-
-            // Mur Est
-            const wallE = new THREE.Mesh( new THREE.BoxGeometry( 2, 30, 100 ), wallMaterial );
-            wallE.position.set( 50, 15, 0 );
-            scene.add( wallE );
-
-            // Mur Ouest
-            const wallW = new THREE.Mesh( new THREE.BoxGeometry( 2, 30, 100 ), wallMaterial );
-            wallW.position.set( -50, 15, 0 );
-            scene.add( wallW );
-
-            // -- DÉCORS (Quelques colonnes) --
-            const columnGeo = new THREE.CylinderGeometry( 2, 2, 30, 16 );
-            const columnMat = new THREE.MeshLambertMaterial( { color: 0xffffff } );
-            const positions = [ [-30,-30], [30,-30], [-30,30], [30,30] ];
-            positions.forEach(pos => {
-                const col = new THREE.Mesh(columnGeo, columnMat);
-                col.position.set(pos[0], 15, pos[1]);
-                scene.add(col);
+        // --- FONCTIONS DE CONSTRUCTION DU NIVEAU ---
+        function createWall(x, z, width, depth, color) {
+            const geometry = new THREE.BoxGeometry(width, 30, depth);
+            const material = new THREE.MeshLambertMaterial({ color: color });
+            const wall = new THREE.Mesh(geometry, material);
+            wall.position.set(x, 15, z);
+            scene.add(wall);
+            // On enregistre les coordonnées du mur pour la gestion des collisions
+            walls.push({
+                minX: x - width/2, maxX: x + width/2,
+                minZ: z - depth/2, maxZ: z + depth/2
             });
+        }
 
-            // -- L'OBJET INTERACTIF (La "Page" avec aperçu) --
-            // 1. Création d'une texture avec Canvas pour l'aperçu du texte
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = 512;
-            pageCanvas.height = 700;
-            const ctx = pageCanvas.getContext('2d');
-            
-            // Fond blanc (papier)
-            ctx.fillStyle = '#f9f9f9';
-            ctx.fillRect(0, 0, 512, 700);
-            
-            // Titre de la page
-            ctx.fillStyle = '#2c3e50';
-            ctx.font = 'bold 36px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Dissertation de Français', 256, 80);
-            
-            // Faux texte pour donner l'illusion d'une page remplie
-            ctx.fillStyle = '#7f8c8d';
-            ctx.textAlign = 'left';
-            ctx.font = '22px sans-serif';
-            ctx.fillText('Introduction :', 40, 150);
-            
+        function createFloor(x, z, width, depth, material) {
+            const geometry = new THREE.PlaneGeometry(width, depth);
+            const floor = new THREE.Mesh(geometry, material);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(x, 0, z);
+            scene.add(floor);
+        }
+
+        function createInteractableObject(x, z, title, url, color, isCube=false) {
+            // Création d'une texture avec Canvas pour l'aperçu du texte
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 700;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f9f9f9'; ctx.fillRect(0, 0, 512, 700);
+            ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 36px sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText(title, 256, 80);
+            ctx.fillStyle = '#7f8c8d'; ctx.textAlign = 'left'; ctx.font = '22px sans-serif';
+            ctx.fillText('Cliquez (E) pour lire...', 40, 150);
             for(let i=0; i<12; i++) {
-                // Lignes de texte générées sous forme de petits rectangles
                 ctx.fillRect(40, 180 + i * 35, 432 - (Math.random() * 100), 15);
             }
             
-            const pageTexture = new THREE.CanvasTexture(pageCanvas);
-
-            // 2. Création de la géométrie et des matériaux
-            const intGeo = new THREE.BoxGeometry( 4, 6, 0.5 ); // Forme d'une page
+            const texture = new THREE.CanvasTexture(canvas);
+            const frontMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
+            const coverMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.5 });
             
-            // Matériau doré pour la couverture/dos
-            const coverMat = new THREE.MeshStandardMaterial( { 
-                color: 0xffd700, emissive: 0x332200, roughness: 0.2, metalness: 0.8
-            } );
+            let geometry, materials;
+            if (isCube) {
+                geometry = new THREE.BoxGeometry(5, 5, 5); // Style Mathématiques (cube)
+                materials = [coverMat, coverMat, coverMat, coverMat, frontMat, coverMat];
+            } else {
+                geometry = new THREE.BoxGeometry(4, 6, 0.5); // Style Page normale
+                materials = [coverMat, coverMat, coverMat, coverMat, frontMat, coverMat];
+            }
             
-            // Matériau avec notre aperçu textuel pour la face avant
-            const frontMat = new THREE.MeshStandardMaterial( { 
-                map: pageTexture, roughness: 0.8, metalness: 0.1
-            } );
-
-            // Ordre des faces dans ThreeJS BoxGeometry : Droite, Gauche, Haut, Bas, Avant, Arrière
-            const materials = [ coverMat, coverMat, coverMat, coverMat, frontMat, coverMat ];
+            const mesh = new THREE.Mesh(geometry, materials);
+            mesh.position.set(x, 10, z);
+            scene.add(mesh);
             
-            interactableObject = new THREE.Mesh( intGeo, materials );
-            // Positionner au centre, un peu au fond
-            interactableObject.position.set( 0, 10, -20 ); 
-            scene.add( interactableObject );
-
-            // Petit socle en dessous
-            const base = new THREE.Mesh( new THREE.CylinderGeometry(3, 4, 2, 16), new THREE.MeshLambertMaterial({color: 0x333333}) );
-            base.position.set(0, 1, -20);
+            // Petit socle d'exposition
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 2, 16), new THREE.MeshLambertMaterial({color: 0x333333}));
+            base.position.set(x, 1, z);
             scene.add(base);
+
+            // On ajoute cet objet à la liste des interactions possibles
+            interactableObjects.push({ mesh: mesh, title: title, url: url });
+        }
+
+        function createEnvironment() {
+            // -- TEXTURES ET MATÉRIAUX --
+            const canvasChecker = document.createElement('canvas');
+            canvasChecker.width = 128; canvasChecker.height = 128;
+            const ctxC = canvasChecker.getContext('2d');
+            ctxC.fillStyle = '#ffffff'; ctxC.fillRect(0, 0, 128, 128);
+            ctxC.fillStyle = '#bdc3c7'; ctxC.fillRect(0, 0, 64, 64); ctxC.fillRect(64, 64, 64, 64);
+            const texChecker = new THREE.CanvasTexture(canvasChecker);
+            texChecker.wrapS = THREE.RepeatWrapping; texChecker.wrapT = THREE.RepeatWrapping;
+            texChecker.repeat.set(5, 10);
+
+            const matHallway = new THREE.MeshLambertMaterial({ map: texChecker });
+            const matWood = new THREE.MeshLambertMaterial({ color: 0x8B5A2B }); // Sol bois
+            const matScience = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Sol sombre
+            const matMuseum = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); // Tapis rouge
+
+            // --- 1. COULOIR CENTRAL (Point de départ) ---
+            createFloor(0, 0, 40, 100, matHallway);
+            createWall(0, 50, 40, 2, 0x7f8c8d); // Mur de derrière fermé
+            
+            // Murs Ouest (avec une ouverture au milieu pour le Français)
+            createWall(-20, 30, 2, 40, 0x7f8c8d);
+            createWall(-20, -30, 2, 40, 0x7f8c8d);
+            
+            // Murs Est (avec une ouverture au milieu pour les Maths)
+            createWall(20, 30, 2, 40, 0x7f8c8d);
+            createWall(20, -30, 2, 40, 0x7f8c8d);
+
+            // --- 2. SALLE FRANÇAIS (Ouest) : Thème Bibliothèque ---
+            createFloor(-50, 0, 60, 60, matWood);
+            createWall(-80, 0, 2, 60, 0x5C4033); // Mur du fond
+            createWall(-50, -30, 60, 2, 0x5C4033); // Mur nord
+            createWall(-50, 30, 60, 2, 0x5C4033); // Mur sud
+            
+            const lightFR = new THREE.PointLight(0xffddaa, 0.8, 100);
+            lightFR.position.set(-50, 20, 0); scene.add(lightFR);
+            
+            createInteractableObject(-65, -10, "Dissertation Français", "bac_dissert_francais.html", 0xffd700);
+
+
+            // --- 3. SALLE MATHS/SCIENCES (Est) : Thème Labo ---
+            createFloor(50, 0, 60, 60, matScience);
+            createWall(80, 0, 2, 60, 0x2c3e50); // Mur du fond
+            createWall(50, -30, 60, 2, 0x2c3e50); // Mur nord
+            createWall(50, 30, 60, 2, 0x2c3e50); // Mur sud
+            
+            const lightMath = new THREE.PointLight(0x00ffff, 0.8, 100);
+            lightMath.position.set(50, 20, 0); scene.add(lightMath);
+            
+            createInteractableObject(65, 10, "Projet Mathématiques", "maths.html", 0x00ffff, true);
+
+
+            // --- 4. SALLE HISTOIRE (Nord) : Thème Musée ---
+            createFloor(0, -80, 80, 60, matMuseum);
+            createWall(0, -110, 80, 2, 0xF5F5DC); // Mur du fond
+            createWall(-40, -80, 2, 60, 0xF5F5DC); // Mur ouest
+            createWall(40, -80, 2, 60, 0xF5F5DC); // Mur est
+            
+            // Mur avec une grande porte
+            createWall(-30, -50, 20, 2, 0xF5F5DC);
+            createWall(30, -50, 20, 2, 0xF5F5DC);
+            
+            const lightHist = new THREE.PointLight(0xffffff, 0.8, 100);
+            lightHist.position.set(0, 20, -80); scene.add(lightHist);
+            
+            createInteractableObject(0, -95, "Exposé d'Histoire", "histoire.html", 0xe67e22);
         }
 
         function onWindowResize() {
@@ -479,15 +496,11 @@
         }
 
         function checkInteraction() {
-            if (isNearObject && controls.isLocked) {
-                // L'utilisateur a appuyé sur E et est assez proche
-                
-                // 1. On déverrouille la souris pour pouvoir utiliser la nouvelle page
+            if (closestObject && controls.isLocked) {
+                // L'utilisateur a appuyé sur E en étant près d'un des objets
                 controls.unlock();
-
-                // 2. REDIRECTION VERS LA NOUVELLE PAGE (Votre dissertation)
-                console.log("Redirection vers bac_dissert_francais.html...");
-                window.location.href = 'bac_dissert_francais.html';
+                console.log("Redirection vers " + closestObject.url + "...");
+                window.location.href = closestObject.url;
             }
         }
 
@@ -496,83 +509,94 @@
 
             const time = performance.now();
 
-            // 1. ANIMATION DES OBJETS
-            if (interactableObject) {
-                // Fait tourner l'objet sur lui-même (vitesse réduite pour mieux lire le titre)
-                interactableObject.rotation.y += 0.005;
-                // Le fait flotter un peu de haut en bas
-                interactableObject.position.y = 10 + Math.sin(time * 0.002) * 2;
-            }
+            // 1. ANIMATION DES OBJETS INTERACTIFS
+            interactableObjects.forEach((obj, index) => {
+                obj.mesh.rotation.y += 0.005;
+                // Flottement asynchrone pour chaque objet
+                obj.mesh.position.y = 10 + Math.sin(time * 0.002 + index) * 2;
+            });
 
-            // 2. GESTION DU DÉPLACEMENT
+            // 2. GESTION DU DÉPLACEMENT AVEC COLLISIONS
             if ( controls.isLocked === true ) {
-                // Calcul du delta de temps en secondes
                 let delta = ( time - prevTime ) / 1000;
-
-                // CORRECTION DU BUG DE TÉLÉPORTATION :
-                // Limiter le delta pour éviter les bonds de géant si le PC lague ou si on change d'onglet
                 if ( delta > 0.1 ) delta = 0.1;
 
-                // Friction / ralentissement
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                velocity.y -= 9.8 * 100.0 * delta; // Gravité
+                velocity.y -= 9.8 * 100.0 * delta; 
 
-                // Vecteurs de direction basés sur les entrées clavier
                 direction.z = Number( moveForward ) - Number( moveBackward );
                 direction.x = Number( moveRight ) - Number( moveLeft );
-                direction.normalize(); // Normaliser pour une vitesse constante en diagonale
+                direction.normalize();
 
-                // Application de la vitesse
                 const speed = 400.0;
                 if ( moveForward || moveBackward ) velocity.z -= direction.z * speed * delta;
                 if ( moveLeft || moveRight ) velocity.x -= direction.x * speed * delta;
 
-                // Application du mouvement à la caméra via les contrôles
+                // Position avant déplacement
+                const pos = controls.getObject().position;
+                const oldX = pos.x;
+                const oldZ = pos.z;
+
+                // Application du mouvement
                 controls.moveRight( - velocity.x * delta );
                 controls.moveForward( - velocity.z * delta );
-                
-                // Gestion de la hauteur et du sol (Saut basique)
-                controls.getObject().position.y += ( velocity.y * delta );
+                pos.y += ( velocity.y * delta );
 
-                if ( controls.getObject().position.y < 10 ) {
-                    // Si on touche le sol
-                    velocity.y = 0;
-                    controls.getObject().position.y = 10; // Hauteur des yeux fixée à 10
-                    canJump = true;
+                // Vérification des murs (Rayon de collision = 2)
+                const pr = 2; 
+                let collideX = false;
+                let collideZ = false;
+
+                for(let w of walls) {
+                    // Test collision sur l'axe X
+                    if (pos.x + pr > w.minX && pos.x - pr < w.maxX && oldZ + pr > w.minZ && oldZ - pr < w.maxZ) {
+                        collideX = true;
+                    }
+                    // Test collision sur l'axe Z
+                    if (oldX + pr > w.minX && oldX - pr < w.maxX && pos.z + pr > w.minZ && pos.z - pr < w.maxZ) {
+                        collideZ = true;
+                    }
                 }
 
-                // GESTION DES COLLISIONS BASIQUES (limites de la pièce)
-                // Pour éviter de traverser les murs
-                const pos = controls.getObject().position;
-                if (pos.x < -48) pos.x = -48;
-                if (pos.x > 48) pos.x = 48;
-                if (pos.z < -48) pos.z = -48;
+                // Annuler le mouvement si on rentre dans un mur
+                if (collideX) pos.x = oldX;
+                if (collideZ) pos.z = oldZ;
+
+                // Gravité et sol
+                if ( pos.y < 10 ) {
+                    velocity.y = 0;
+                    pos.y = 10;
+                    canJump = true;
+                }
+                
+                // On limite l'arrière pour ne pas tomber dans le vide au point d'apparition
                 if (pos.z > 48) pos.z = 48;
 
 
-                // 3. LOGIQUE DE DISTANCE POUR L'INTERACTION
-                // Calculer la distance entre la caméra (le joueur) et l'objet
-                if (interactableObject) {
-                    const distance = pos.distanceTo(interactableObject.position);
-                    
-                    if (distance < interactionDistance) {
-                        if (!isNearObject) {
-                            isNearObject = true;
-                            interactionMsg.style.display = 'block'; // Afficher le message E
-                        }
-                    } else {
-                        if (isNearObject) {
-                            isNearObject = false;
-                            interactionMsg.style.display = 'none'; // Cacher le message
-                        }
+                // 3. LOGIQUE DE DISTANCE POUR LE MENU
+                closestObject = null;
+                let minDistance = interactionDistance;
+
+                // On cherche l'objet le plus proche du joueur
+                interactableObjects.forEach(obj => {
+                    const distance = pos.distanceTo(obj.mesh.position);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestObject = obj;
                     }
+                });
+
+                if (closestObject) {
+                    interactionMsg.innerText = "Appuyez sur 'E' pour ouvrir : " + closestObject.title;
+                    interactionMsg.style.display = 'block';
+                } else {
+                    interactionMsg.style.display = 'none';
                 }
             }
 
             prevTime = time;
 
-            // Rendu de la scène
             renderer.render( scene, camera );
         }
     </script>
