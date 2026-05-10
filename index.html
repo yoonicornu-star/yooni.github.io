@@ -3,148 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Espace Scolaire</title>
-    <!-- Chargement de Tailwind CSS pour un design rapide et épuré -->
+    <title>Mon Espace Scolaire & Projets</title>
+    <!-- Chargement de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Product+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Icônes Phosphor -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         body {
-            /* Utilisation d'une police proche de celle de Google */
             font-family: 'Product Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #ffffff;
+            background-color: #f8f9fa; /* Gris très clair Google */
             color: #202124;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
         }
 
-        /* Animation douce au survol des cartes */
-        .card-hover {
+        /* Style des boutons du menu latéral (arrondis à droite façon Google) */
+        .nav-item {
+            border-radius: 0 24px 24px 0;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .nav-item.active {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+
+        /* Animation des cartes */
+        .google-card {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #dadce0;
         }
-        .card-hover:hover {
+        .google-card:hover {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transform: translateY(-2px);
+            background-color: #fdfdfd;
         }
 
-        /* Barre de recherche factice façon Google */
-        .search-bar {
-            box-shadow: 0 1px 6px rgba(32, 33, 36, 0.28);
-            border-radius: 24px;
-            transition: box-shadow 0.2s;
+        /* Bouton Nouveau Google */
+        .btn-new {
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            transition: box-shadow 0.2s, background-color 0.2s;
         }
-        .search-bar:hover, .search-bar:focus-within {
-            box-shadow: 0 1px 6px rgba(32, 33, 36, 0.4);
+        .btn-new:hover {
+            box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            background-color: #f8fafd;
         }
     </style>
 </head>
-<body>
+<body class="flex h-screen overflow-hidden">
 
-    <header class="flex justify-between items-center p-4">
-        <!-- Logo (Gauche) -->
-        <div class="flex items-center space-x-2 text-gray-600 cursor-pointer">
-            <i class="ph ph-list text-2xl p-2 hover:bg-gray-100 rounded-full transition-colors"></i>
+    <aside class="w-64 bg-white flex flex-col pt-4 hidden md:flex z-10 shadow-[1px_0_2px_rgba(0,0,0,0.05)]">
+        <!-- Logo -->
+        <div class="flex items-center px-6 mb-8 cursor-pointer">
+            <span class="text-2xl font-bold tracking-tight">
+                <span class="text-blue-500">M</span><span class="text-red-500">y</span><span class="text-yellow-500">S</span><span class="text-blue-500">p</span><span class="text-green-500">a</span><span class="text-red-500">c</span><span class="text-yellow-500">e</span>
+            </span>
         </div>
+
+        <!-- Bouton Nouveau -->
+        <div class="px-4 mb-6">
+            <button class="btn-new flex items-center bg-white rounded-full px-5 py-3 text-sm font-medium text-gray-700 space-x-3">
+                <svg width="24" height="24" viewBox="0 0 24 24" class="text-blue-500"><path fill="#ea4335" d="M10 10V6h4v4h4v4h-4v4h-4v-4H6v-4h4z"/></svg>
+                <span>Nouveau</span>
+            </button>
+        </div>
+
+        <!-- Menu Navigation -->
+        <nav class="flex-1 pr-4">
+            <a href="#" class="nav-item active flex items-center px-6 py-2.5 mb-1 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="ph ph-house text-xl mr-4"></i> Accueil
+            </a>
+            <a href="#" class="nav-item flex items-center px-6 py-2.5 mb-1 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="ph ph-folder-open text-xl mr-4"></i> Mes Projets
+            </a>
+            <a href="#" class="nav-item flex items-center px-6 py-2.5 mb-1 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="ph ph-star text-xl mr-4"></i> Favoris
+            </a>
+            <hr class="my-4 border-gray-200">
+            <a href="#" class="nav-item flex items-center px-6 py-2.5 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="ph ph-trash text-xl mr-4"></i> Corbeille
+            </a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden">
         
-        <!-- Icônes profil (Droite) -->
-        <div class="flex items-center space-x-4">
-            <i class="ph ph-squares-four text-2xl text-gray-600 p-2 hover:bg-gray-100 rounded-full cursor-pointer transition-colors"></i>
-            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-medium cursor-pointer hover:bg-blue-600 transition-colors shadow-sm">
-                A
+        <!-- Header / Barre de recherche -->
+        <header class="flex items-center justify-between p-4 bg-white md:bg-transparent">
+            <!-- Menu mobile -->
+            <button class="md:hidden p-2 text-gray-600 rounded-full hover:bg-gray-100">
+                <i class="ph ph-list text-2xl"></i>
+            </button>
+
+            <!-- Searchbar -->
+            <div class="flex-1 max-w-3xl ml-4 md:ml-0">
+                <div class="flex items-center bg-white rounded-full px-4 py-2.5 shadow-sm border border-transparent focus-within:border-transparent focus-within:bg-white focus-within:shadow-[0_1px_3px_rgba(60,64,67,0.3)] transition-all">
+                    <i class="ph ph-magnifying-glass text-gray-500 text-lg mr-3"></i>
+                    <input type="text" placeholder="Rechercher dans Drive..." class="flex-1 bg-transparent outline-none text-base text-gray-700">
+                    <i class="ph ph-sliders-horizontal text-gray-500 text-lg ml-3 cursor-pointer hover:text-gray-700"></i>
+                </div>
             </div>
-        </div>
-    </header>
 
-    <main class="flex-grow flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 -mt-20">
-        
-        <!-- "Logo" principal -->
-        <h1 class="text-5xl sm:text-6xl font-bold mb-8 tracking-tighter" style="letter-spacing: -1.5px;">
-            <span class="text-blue-500">M</span><span class="text-red-500">e</span><span class="text-yellow-500">n</span><span class="text-blue-500">u</span>
-            <span class="text-green-500 ml-1">P</span><span class="text-red-500">r</span><span class="text-yellow-500">o</span><span class="text-blue-500">j</span><span class="text-green-500">e</span><span class="text-red-500">t</span><span class="text-yellow-500">s</span>
-        </h1>
+            <!-- Profil -->
+            <div class="flex items-center ml-4 space-x-3">
+                <i class="ph ph-question text-xl text-gray-600 p-2 hover:bg-gray-100 rounded-full cursor-pointer hidden sm:block"></i>
+                <i class="ph ph-gear text-xl text-gray-600 p-2 hover:bg-gray-100 rounded-full cursor-pointer hidden sm:block"></i>
+                <i class="ph ph-squares-four text-2xl text-gray-600 p-2 hover:bg-gray-100 rounded-full cursor-pointer"></i>
+                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-medium cursor-pointer shadow-sm ml-2">
+                    A
+                </div>
+            </div>
+        </header>
 
-        <!-- Barre de recherche (Purement décorative pour le style) -->
-        <div class="search-bar w-full max-w-2xl flex items-center bg-white px-4 py-3 mb-10 cursor-text">
-            <i class="ph ph-magnifying-glass text-gray-400 text-xl mr-3"></i>
-            <input type="text" placeholder="Rechercher une page ou un projet..." class="flex-grow outline-none text-base text-gray-700 bg-transparent placeholder-gray-500">
-            <i class="ph ph-microphone text-blue-500 text-xl ml-3 cursor-pointer hover:text-blue-600"></i>
-        </div>
-
-        <div class="w-full max-w-4xl">
-            <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4 px-2">Vos espaces de travail</h2>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+        <div class="flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="max-w-6xl mx-auto">
                 
-                <!-- Carte 1 : Français -->
-                <a href="bac_dissert_francais.html" class="card-hover block p-6 bg-white border border-gray-200 rounded-xl no-underline text-left group">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mr-3 group-hover:bg-blue-100 transition-colors">
-                            <i class="ph ph-book-open text-blue-500 text-xl"></i>
+                <!-- Section : Accès Rapide -->
+                <h2 class="text-sm font-medium text-gray-600 mb-4">Accès rapide</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                    <!-- Raccourci Poker -->
+                    <a href="poker.html" class="google-card bg-white rounded-xl p-4 flex flex-col space-y-2 cursor-pointer no-underline">
+                        <div class="flex justify-between items-start">
+                            <i class="ph-fill ph-suit-spade text-2xl text-red-600"></i>
+                            <i class="ph-fill ph-star text-yellow-400 text-sm"></i>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-800">Français</h3>
-                    </div>
-                    <p class="text-sm text-gray-500 leading-relaxed">
-                        Dissertations, fiches de lecture et préparations au BAC.
-                    </p>
-                </a>
+                        <div class="mt-auto pt-4">
+                            <h3 class="text-sm font-medium text-gray-800 truncate">Jeu de Poker</h3>
+                            <p class="text-xs text-gray-500">Ouvert récemment</p>
+                        </div>
+                    </a>
+                    
+                    <!-- Raccourci Français -->
+                    <a href="bac_dissert_francais.html" class="google-card bg-white rounded-xl p-4 flex flex-col space-y-2 cursor-pointer no-underline">
+                        <div class="flex justify-between items-start">
+                            <i class="ph-fill ph-file-text text-2xl text-blue-500"></i>
+                        </div>
+                        <div class="mt-auto pt-4">
+                            <h3 class="text-sm font-medium text-gray-800 truncate">Dissert_Baudelaire.docx</h3>
+                            <p class="text-xs text-gray-500">Modifié hier</p>
+                        </div>
+                    </a>
+                </div>
 
-                <!-- Carte 2 : Mathématiques -->
-                <a href="maths.html" class="card-hover block p-6 bg-white border border-gray-200 rounded-xl no-underline text-left group">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center mr-3 group-hover:bg-green-100 transition-colors">
-                            <i class="ph ph-calculator text-green-500 text-xl"></i>
+                <!-- Section : Cours & Matières -->
+                <h2 class="text-sm font-medium text-gray-600 mb-4">Cours & Révisions</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                    
+                    <!-- Français -->
+                    <a href="bac_dissert_francais.html" class="google-card bg-white rounded-xl p-5 flex items-center space-x-4 cursor-pointer no-underline">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                            <i class="ph ph-book-open text-blue-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-800">Mathématiques</h3>
-                    </div>
-                    <p class="text-sm text-gray-500 leading-relaxed">
-                        Exercices, formules et projets scientifiques en cours.
-                    </p>
-                </a>
+                        <div>
+                            <h3 class="text-base font-medium text-gray-800">Français</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Méthodologie & Dissertations</p>
+                        </div>
+                    </a>
 
-                <!-- Carte 3 : Histoire -->
-                <a href="histoire.html" class="card-hover block p-6 bg-white border border-gray-200 rounded-xl no-underline text-left group">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center mr-3 group-hover:bg-yellow-100 transition-colors">
-                            <i class="ph ph-bank text-yellow-500 text-xl"></i>
+                    <!-- Maths -->
+                    <a href="maths.html" class="google-card bg-white rounded-xl p-5 flex items-center space-x-4 cursor-pointer no-underline">
+                        <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+                            <i class="ph ph-calculator text-green-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-800">Histoire-Géo</h3>
-                    </div>
-                    <p class="text-sm text-gray-500 leading-relaxed">
-                        Chronologies, cartes et exposés historiques.
-                    </p>
-                </a>
+                        <div>
+                            <h3 class="text-base font-medium text-gray-800">Mathématiques</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Théorèmes et exercices</p>
+                        </div>
+                    </a>
 
-                <!-- Carte 4 : Galerie 3D (Retour au musée) -->
-                <a href="musee.html" class="card-hover block p-6 bg-white border border-gray-200 rounded-xl no-underline text-left group">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mr-3 group-hover:bg-red-100 transition-colors">
-                            <i class="ph ph-cube text-red-500 text-xl"></i>
+                    <!-- Histoire -->
+                    <a href="histoire.html" class="google-card bg-white rounded-xl p-5 flex items-center space-x-4 cursor-pointer no-underline">
+                        <div class="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center flex-shrink-0">
+                            <i class="ph ph-bank text-yellow-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-800">Musée 3D</h3>
-                    </div>
-                    <p class="text-sm text-gray-500 leading-relaxed">
-                        Explorer le musée virtuel avec Three.js (Ancien index).
-                    </p>
-                </a>
+                        <div>
+                            <h3 class="text-base font-medium text-gray-800">Histoire-Géo</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Cartes et chronologies</p>
+                        </div>
+                    </a>
+                </div>
+
+                <h2 class="text-sm font-medium text-gray-600 mb-4">Projets Personnels & Jeux</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    
+                    <!-- Nouveau: Poker -->
+                    <a href="poker.html" class="google-card bg-white rounded-xl p-5 flex items-center space-x-4 cursor-pointer no-underline border-l-4 border-l-red-500">
+                        <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                            <i class="ph ph-cards text-red-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-medium text-gray-800">Poker Master</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Mon jeu de cartes programmé</p>
+                        </div>
+                    </a>
+
+                    <!-- Musée 3D -->
+                    <a href="musee.html" class="google-card bg-white rounded-xl p-5 flex items-center space-x-4 cursor-pointer no-underline border-l-4 border-l-purple-500">
+                        <div class="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
+                            <i class="ph ph-cube text-purple-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-medium text-gray-800">Musée Virtuel 3D</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Exploration Three.js</p>
+                        </div>
+                    </a>
+
+                </div>
 
             </div>
         </div>
     </main>
-
-    <footer class="bg-[#f2f2f2] text-[#70757a] text-sm py-4 mt-auto">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center">
-            <div class="mb-2 sm:mb-0">
-                France
-            </div>
-            <div class="flex space-x-6">
-                <a href="#" class="hover:underline">À propos</a>
-                <a href="#" class="hover:underline">Paramètres</a>
-                <a href="#" class="hover:underline">Confidentialité</a>
-            </div>
-        </div>
-    </footer>
 
 </body>
 </html>
